@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "alltoall_global_scheduler.h"
 
 // should only be increased if fundamental changes to dispatch table(s)
 #define RCCL_API_TRACE_VERSION_MAJOR 0
@@ -65,9 +66,21 @@ typedef ncclResult_t (*ncclAllToAll_fn_t)(const void* sendbuff, void* recvbuff,
                                           size_t count, ncclDataType_t datatype,
                                           ncclComm_t comm, hipStream_t stream);
 typedef ncclResult_t (*ncclAllToAllv_fn_t)(
+    uint rankid,
     const void* sendbuff, const size_t sendcounts[], const size_t sdispls[],
     void* recvbuff, const size_t recvcounts[], const size_t rdispls[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+
+/*
+New AllToAll API
+*/
+typedef ncclResult_t (*ncclAllToAllv2_fn_t)(
+    uint rankid,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[], 
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+
 typedef ncclResult_t (*ncclBroadcast_fn_t)(const void* sendbuff, void* recvbuff,
                                            size_t count, ncclDataType_t datatype,
                                            int root, ncclComm_t comm,
@@ -194,6 +207,7 @@ typedef struct rcclApiFuncTable
     mscclUnloadAlgo_fn_t          mscclUnloadAlgo_fn;
     ncclCommRegister_fn_t         ncclCommRegister_fn;
     ncclCommDeregister_fn_t       ncclCommDeregister_fn;
+    ncclAllToAllv2_fn_t           ncclAllToAllv2_fn;
 
 } rcclApiFuncTable;
 

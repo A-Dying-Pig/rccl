@@ -37,6 +37,14 @@ ncclAllToAllv_impl(const void* sendbuff, const size_t sendcounts[],
                    hipStream_t stream);
 
 ncclResult_t
+ncclAllToAllv2_impl(
+    uint rankid,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[], 
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+
+ncclResult_t
 ncclBroadcast_impl(const void* sendbuff, void* recvbuff, size_t count,
                    ncclDataType_t datatype, int root, ncclComm_t comm,
                    cudaStream_t stream);
@@ -211,6 +219,7 @@ RCCL_ASSERT_OFFSET(rcclApiFuncTable, mscclRunAlgo_fn, 33);
 RCCL_ASSERT_OFFSET(rcclApiFuncTable, mscclUnloadAlgo_fn, 34);
 RCCL_ASSERT_OFFSET(rcclApiFuncTable, ncclCommRegister_fn, 35);
 RCCL_ASSERT_OFFSET(rcclApiFuncTable, ncclCommDeregister_fn, 36);
+RCCL_ASSERT_OFFSET(rcclApiFuncTable, ncclAllToAllv2_fn, 37);
 
 #undef RCCL_ASSERT_OFFSET
 
@@ -261,7 +270,8 @@ RcclGetFunctionTable_impl()
                                                &mscclRunAlgo_impl,
                                                &mscclUnloadAlgo_impl,
                                                &ncclCommRegister_impl,
-                                               &ncclCommDeregister_impl };
+                                               &ncclCommDeregister_impl,
+                                               &ncclAllToAllv2_impl};
 
 #if defined(RCCL_ROCPROFILER_REGISTER) && RCCL_ROCPROFILER_REGISTER > 0
     std::array<void*, 1>                       table_array{ tbl };
@@ -308,6 +318,11 @@ NCCL_API(ncclResult_t, ncclAllToAllv, const void* sendbuff, const size_t sendcou
          const size_t sdispls[], void* recvbuff, const size_t recvcounts[],
          const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm,
          hipStream_t stream);
+
+NCCL_API(ncclResult_t, ncclAllToAllv2, uint rankid, void* sendbuff, size_t sendcounts[], size_t sendpos[], 
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+    void* tempbuff, void * syncbuff, struct scheduling_result_t * sched,
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
 NCCL_API(ncclResult_t, ncclBroadcast, const void* sendbuff, void* recvbuff, size_t count,
          ncclDataType_t datatype, int root, ncclComm_t comm, hipStream_t stream);
@@ -427,6 +442,18 @@ ncclAllToAllv(const void* sendbuff, const size_t sendcounts[], const size_t sdis
     return ::rccl::RcclGetFunctionTable()->ncclAllToAllv_fn(sendbuff, sendcounts, sdispls,
                                                             recvbuff, recvcounts, rdispls,
                                                             datatype, comm, stream);
+}
+
+ncclResult_t
+ncclAllToAllv2(uint rankid, void* sendbuff, size_t sendcounts[], size_t sendpos[], 
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+    void* tempbuff, void * syncbuff,  struct scheduling_result_t * sched,
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream)
+{
+    return ::rccl::RcclGetFunctionTable()->ncclAllToAllv2_fn(rankid,
+                                                            sendbuff, sendcounts, sendpos,
+                                                            recvbuff, recvcounts, recvpos,
+                                                            tempbuff, syncbuff, sched, datatype, comm, stream);
 }
 
 ncclResult_t
