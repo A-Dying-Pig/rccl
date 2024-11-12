@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <iomanip>
 #include "alltoall_matrix.h"
-#include <hip/hipruntime.h>
+#include <hip/hip_runtime.h>
 
 using namespace std;
 
@@ -62,10 +62,10 @@ Matrix::Matrix(Matrix * mat){
     dim = mat->get_dim();
     unit = mat->get_unit();
     sdsm_info = mat->sdsm_info;
-    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
+    hipMallocManaged((void**) &data, sizeof(uint*) * dim);
     // data = new uint*[dim];
     for (uint i = 0; i < dim; i++){
-        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+        hipMallocManaged((void**) &data[i], sizeof(uint) * dim);
         // data[i] = new uint[dim];
         for (uint j = 0; j < dim; j++){
             data[i][j] = mat->get(i,j);
@@ -95,7 +95,7 @@ void Matrix::copy(Matrix * mat){
         hipMallocManaged((void**) &data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim)
+            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
     }
@@ -121,7 +121,7 @@ void Matrix::copy(uint * _data, uint source_dim){
         hipMallocManaged((void**) &data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim)
+            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
     }

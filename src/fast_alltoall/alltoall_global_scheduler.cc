@@ -2,7 +2,7 @@
 #include "alltoall_define.h"
 #include <chrono>
 #include <iostream>
-#include <hip/hipruntime.h>
+#include <hip/hip_runtime.h>
 using namespace chrono;
 using namespace std;
 
@@ -24,7 +24,7 @@ GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, vector<LocalSchedu
     // cout << "Global scheduler prints server2server matrix: " << endl;
     // mat.print();
     // delete[] data;
-    hipeFree((void*)data);
+    hipFree((void*)data);
 }
 
 GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, uint * demand_matrix){
@@ -109,7 +109,7 @@ struct scheduling_result_t GlobalScheduler::run(){
     for (uint i = 0; i < locals_sz; i++){
         TransferMatrixElement * intra_ata;
         hipMallocManaged((void**) &intra_ata, sizeof(TransferMatrixElement) * gpu_n * gpu_n);
-        hipMemcpy(intra_ata, locals[i]->get_intrinsic_all2all(), gpu_n * gpu_n * sizeof(TransferMatrixElement));
+        hipMemcpy(intra_ata, locals[i]->get_intrinsic_all2all(), gpu_n * gpu_n * sizeof(TransferMatrixElement), hipMemcpyHostToHost);
         // TransferMatrixElement * intra_ata = new TransferMatrixElement[gpu_n * gpu_n];
         // memcpy(intra_ata, locals[i]->get_intrinsic_all2all(), gpu_n * gpu_n * sizeof(TransferMatrixElement));
         schd_ret.intrinsic_ata.push_back(intra_ata);

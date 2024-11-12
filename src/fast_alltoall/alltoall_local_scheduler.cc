@@ -2,7 +2,7 @@
 #include <vector>
 #include <iomanip>
 #include <stdio.h>
-#include <hip/hipruntime.h>
+#include <hip/hip_runtime.h>
 
 
 using namespace std;
@@ -20,9 +20,9 @@ LocalScheduler::LocalScheduler(uint* _data, uint _gpu_n, uint _server_n, uint _s
     // data_after_balance = new data_t*[gpu_n];
     uint idx = 0;
     for (uint i = 0; i < gpu_n; i++){
-        hipMallocManaged(data[i], sizeof(uint) * dim);
-        hipMallocManaged(balanced_data[i], sizeof(uint) * dim);
-        hipMallocManaged(data_after_balance[i], sizeof(data_t) * dim);
+        hipMallocManaged((void**)&data[i], sizeof(uint) * dim);
+        hipMallocManaged((void**)&balanced_data[i], sizeof(uint) * dim);
+        hipMallocManaged((void**)&data_after_balance[i], sizeof(data_t) * dim);
         // data[i] = new uint[dim];
         // balanced_data[i] = new uint[dim];
         // data_after_balance[i] = new data_t[dim];
