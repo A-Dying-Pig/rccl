@@ -4,144 +4,62 @@
 #include "alltoall_matrix.h"
 #include <hip/hip_runtime.h>
 
-using namespace std;
 
-Matrix::Matrix(uint _dim, uint _unit){
-    unit = _unit;
-    dim = _dim;
-    sdsm_info.max_row_col_sum = 0;
-    sdsm_info.is_sdsm = false;
-    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
-    // data = new uint*[_dim];
-    for (uint i = 0; i < _dim; i++){
-        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
-        // data[i] = new uint[_dim];
-        for (uint j = 0; j < _dim; j++){
-            data[i][j] = 0;
-        }
-    }
+void init_matrix(struct Matrix *m){
+    m->data = NULL;
+    m->dim = 0;
+    m->unit = 1;
+    m->sdsm_info.is_sdsm = false;
+    m->sdsm_info.max_row_col_sum = 0;
 }
 
-Matrix::Matrix(uint* _data, uint _dim, uint _unit){
-    unit = _unit;
-    dim = _dim;
-    sdsm_info.max_row_col_sum = 0;
-    sdsm_info.is_sdsm = false;
-    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
-    // data = new uint*[_dim];
-    uint idx = 0;
-    for (uint i = 0; i < _dim; i ++){
-        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
-        // data[i] = new uint[_dim];
-        for (uint j = 0; j < _dim; j++){
-            data[i][j] = _data[idx];
-            idx ++;
-        }
-    }
-}
 
-Matrix::Matrix(uint** _data, uint _dim, uint _unit){
-    unit = _unit;
-    dim = _dim;
-    sdsm_info.max_row_col_sum = 0;
-    sdsm_info.is_sdsm = false;
-    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
-    // data = new uint*[_dim];
-    for (uint i = 0; i < _dim; i ++){
-        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
-        // data[i] = new uint[_dim];
-        for (uint j = 0; j < _dim; j++){
-            data[i][j] = _data[i][j];
+void free_matrix(struct Matrix *m){
+    // cout << "releasing matrix memory" << endl;
+    if (m->data){
+        for (uint i = 0; i < m->dim; i++){
+            hipFree(m->data[i]);
         }
+        hipFree(m->data);
     }
 }
 
 
-// hard copy - initiate a matrix with an exisiting matrix
-Matrix::Matrix(Matrix * mat){
-    dim = mat->get_dim();
-    unit = mat->get_unit();
-    sdsm_info = mat->sdsm_info;
-    hipMallocManaged((void**) &data, sizeof(uint*) * dim);
-    // data = new uint*[dim];
-    for (uint i = 0; i < dim; i++){
-        hipMallocManaged((void**) &data[i], sizeof(uint) * dim);
-        // data[i] = new uint[dim];
-        for (uint j = 0; j < dim; j++){
-            data[i][j] = mat->get(i,j);
-        }
-    }
-}
-
-// hard copy
-void Matrix::copy(Matrix * mat){
-    uint source_dim = mat->get_dim();
-    unit = mat->get_unit();
-    sdsm_info = mat->sdsm_info;
-    if (source_dim == 0){
-        LOG("error when assigning an empty matrix");
-        return;
-    }
-    if (dim > 0 && data != NULL && dim != source_dim){
+void copy_matrix(struct Matrix *m, uint * _data, uint source_dim){
+    if (m->dim > 0 && m->data != NULL && m->dim != source_dim){
         // matrix dimension different - release memory first
-        for (uint i = 0; i < dim; i++){
-            hipFree(data[i]);
+        for (uint i = 0; i < m->dim; i++){
+            hipFree(m->data[i]);
             // delete[] data[i];
         }
-        hipFree(data);
+        hipFree(m->data);
         // delete[] data;
     }
-    if (dim != source_dim){
-        hipMallocManaged((void**) &data, sizeof(uint*) * source_dim);
+    if (m->dim != source_dim){
+        hipMallocManaged((void**) &m->data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim);
+            hipMallocManaged((void**) &m->data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
     }
-    dim = source_dim;
-    for (uint i = 0; i < dim; i++){
-        for (uint j = 0; j < dim; j++){
-            data[i][j] = mat->get(i,j);
-        }
-    }
-}
-
-void Matrix::copy(uint * _data, uint source_dim){
-    if (dim > 0 && data != NULL && dim != source_dim){
-        // matrix dimension different - release memory first
-        for (uint i = 0; i < dim; i++){
-            hipFree(data[i]);
-            // delete[] data[i];
-        }
-        hipFree(data);
-        // delete[] data;
-    }
-    if (dim != source_dim){
-        hipMallocManaged((void**) &data, sizeof(uint*) * source_dim);
-        // data = new uint*[source_dim];
-        for (uint i = 0; i < source_dim; i++){
-            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim);
-            // data[i] = new uint[source_dim];
-        }
-    }
-    dim = source_dim;
-    for (uint i = 0; i < dim; i++){
-        for (uint j = 0; j < dim; j++){
-            data[i][j] = _data[i * source_dim + j];
+    m->dim = source_dim;
+    for (uint i = 0; i < m->dim; i++){
+        for (uint j = 0; j < m->dim; j++){
+            m->data[i][j] = _data[i * source_dim + j];
         }
     }
 }
 
 
-bool Matrix::equal_to(Matrix * mat){
-    uint source_dim = mat->get_dim();
-    if  (dim != source_dim){
+bool equal_to_matrix(struct Matrix *a, struct Matrix *b){
+    uint a_dim = a->dim, b_dim = b->dim;
+    if  (a_dim != b_dim){
         return false;
     }
-    for (uint i = 0; i < dim; i++){
-        for (uint j = 0; j < dim; j++){
-            if (data[i][j] != mat->get(i,j)){
+    for (uint i = 0; i < a_dim; i++){
+        for (uint j = 0; j < a_dim; j++){
+            if (a->data[i][j] != b->data[i][j]){
                 return false;
             }
         }
@@ -150,128 +68,121 @@ bool Matrix::equal_to(Matrix * mat){
 }
 
 
-Matrix::~Matrix(){
-    // cout << "releasing matrix memory" << endl;
-    for (uint i = 0; i < dim; i++){
-        hipFree(data[i]);
-        // delete[] data[i];
-    }
-    hipFree(data);
-    // delete[] data;
-}
-
-uint Matrix::get(uint x, uint y){
-    if (x >= dim || y >= dim){
-        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, dim, dim);
+uint get_matrix(struct Matrix *m, uint x, uint y){
+    if (x >= m->dim || y >= m->dim){
+        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return 0;
     }
-    return data[x][y];
+    return m->data[x][y];
 }
 
-bool Matrix::set(uint val, uint x, uint y){
-    if (x >= dim || y >= dim){
-        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, dim, dim);
+bool set_matrix(struct Matrix *m, uint val, uint x, uint y){
+    if (x >= m->dim || y >= m->dim){
+        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return false;
     }
-    data[x][y] = val;
+    m->data[x][y] = val;
     return true;
 }
 
-bool Matrix::add(uint val, uint x, uint y){
-    if (x >= dim || y >= dim){
-        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, dim, dim);
+bool add_matrix(struct Matrix *m, uint val, uint x, uint y){
+    if (x >= m->dim || y >= m->dim){
+        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return false;
     }
-    data[x][y] += val;
+    m->data[x][y] += val;
     return true;
 }
 
-bool Matrix::subtract(uint val, uint x, uint y){
-    if (x >= dim || y >= dim){
-        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, dim, dim);
+bool subtract_matrix(struct Matrix *m, uint val, uint x, uint y){
+    if (x >= m->dim || y >= m->dim){
+        LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return false;
     }
-    data[x][y] -= val;
+    m->data[x][y] -= val;
     return true;
 }
 
-void Matrix::scale(uint factor){
-    for (uint i = 0; i < dim; i++){
-        for (uint j = 0; j < dim; j++){
-            data[i][j] = (data[i][j] + factor - 1) / factor;
+void scale_matrix(struct Matrix *m, uint factor){
+    for (uint i = 0; i < m->dim; i++){
+        for (uint j = 0; j < m->dim; j++){
+            m->data[i][j] = (m->data[i][j] + factor - 1) / factor;
         }
     }
-    unit = unit * factor;
+    m->unit = m->unit * factor;
 }
 
-void Matrix::print(){
-    printf("Print %u x %u matrix:\n", dim, dim);
-    for(uint i = 0; i < dim; i ++){
-        for (uint j = 0; j < dim; j++){
-            cout << setw(10);
-            cout << data[i][j];
-        }
-        cout << endl;
-    }
-    cout << endl << "is_sdsm: "<< (sdsm_info.is_sdsm ? "true" : "false") << ", max_row_col_sum: " << sdsm_info.max_row_col_sum << endl;
-    cout << "non_max_row_idx: ";
-    for (vector<struct row_col_info_t>::iterator row = sdsm_info.non_max_row.begin(); row != sdsm_info.non_max_row.end(); row++){
-        cout << row->idx << " ";
-    }
-    cout << endl << "non_max_col_idx: ";
-    for (vector<struct row_col_info_t>::iterator col = sdsm_info.non_max_col.begin(); col != sdsm_info.non_max_col.end(); col++){
-        cout << col->idx << " ";
-    }
-    cout << endl;
-}
 
-void Matrix::get_sdsm_info(){
+
+void get_sdsm_info_matrix(struct Matrix *m){
     // reset sdsm info
-    sdsm_info.is_sdsm = false;
-    sdsm_info.non_max_row.clear();
-    sdsm_info.non_max_col.clear();
-    vector<struct row_col_info_t> max_row_idx;
-    vector<struct row_col_info_t> max_col_idx;
+    m->sdsm_info.is_sdsm = false;
+    m->sdsm_info.non_max_row_n = 0;
+    m->sdsm_info.non_max_col_n = 0;
+
+    uint max_row_idx[MAX_SERVER_NUM], max_row_idx_n = 0;
+    uint max_col_idx[MAX_SERVER_NUM], max_col_idx_n = 0;
+
+
     uint max_sum = 0, same_sum_count = 0;
-    for (uint i = 0; i < dim; i++){
+    for (uint i = 0; i < m->dim; i++){
         uint row_sum = 0;
-        for (uint j = 0; j < dim; j++){
-            row_sum += data[i][j];
+        for (uint j = 0; j < m->dim; j++){
+            row_sum += m->data[i][j];
         }
-        struct row_col_info_t row_temp = {.idx = i, .sum = row_sum};
         if (row_sum > max_sum){
             max_sum = row_sum;
-            std::copy(make_move_iterator(max_row_idx.begin()), make_move_iterator(max_row_idx.end()), back_inserter(sdsm_info.non_max_row));
-            max_row_idx.clear();
-            max_row_idx.push_back(row_temp);
+            for (uint z = 0; z < max_row_idx_n; z++){
+                m->sdsm_info.non_max_row[m->sdsm_info.non_max_row_n] = max_row_idx[z];
+                m->sdsm_info.non_max_row_n ++;
+            }
+            max_row_idx[0].idx = i;
+            max_row_idx[0].sum = row_sum;
+            max_row_idx_n = 1;
         }else if (row_sum == max_sum){
-            max_row_idx.push_back(row_temp);
+            max_row_idx[max_row_idx_n].idx = i;
+            max_row_idx[max_row_idx_n].sum = row_sum;
+            max_row_idx_n ++;
             same_sum_count ++;
         }else{
-            sdsm_info.non_max_row.push_back(row_temp);
+            m->sdsm_info.non_max_row[m->sdsm_info.non_max_row_n].idx = i;
+            m->sdsm_info.non_max_row[m->sdsm_info.non_max_row_n].sum = row_sum;
+            m->sdsm_info.non_max_row_n ++;
         }
     }
 
-    for (uint i = 0; i < dim; i++){
+    for (uint i = 0; i < m->dim; i++){
         uint col_sum = 0;
-        for (uint j = 0; j < dim; j++){
-            col_sum += data[j][i];
+        for (uint j = 0; j < m->dim; j++){
+            col_sum += m->data[j][i];
         }
         struct row_col_info_t col_temp = {.idx = i, .sum = col_sum};
         if (col_sum > max_sum){
             max_sum = col_sum;
-            std::copy(make_move_iterator(max_col_idx.begin()), make_move_iterator(max_col_idx.end()), back_inserter(sdsm_info.non_max_col));
-            max_col_idx.clear();
-            max_col_idx.push_back(col_temp);
-            std::copy(make_move_iterator(max_row_idx.begin()), make_move_iterator(max_row_idx.end()), back_inserter(sdsm_info.non_max_row));
-            max_row_idx.clear();
+            for (uint z = 0; z < max_col_idx_n; z++){
+                m->sdsm_info.non_max_col[m->sdsm_info.non_max_col_n] = max_col_idx[z];
+                m->sdsm_info.non_max_col_n ++;
+            }
+            max_col_idx[0].idx = i;
+            max_col_idx[0].sum = col_sum;
+            max_col_idx_n = 1;
+
+            for (uint z = 0; z < max_row_idx_n; z++){
+                m->sdsm_info.non_max_row[m->sdsm_info.non_max_row_n] = max_row_idx[z];
+                m->sdsm_info.non_max_row_n ++;
+            }
+            max_row_idx_n = 0;
         }else if (col_sum == max_sum){
-            max_col_idx.push_back(col_temp);
+            max_col_idx[max_col_idx_n].idx = i;
+            max_col_idx[max_col_idx_n].sum = col_sum;
+            max_col_idx_n ++;
             same_sum_count ++;
         }else{
-            sdsm_info.non_max_col.push_back(col_temp);
+            m->sdsm_info.non_max_col[m->sdsm_info.non_max_col_n].idx = i;
+            m->sdsm_info.non_max_col[m->sdsm_info.non_max_col_n].sum = col_sum;
+            m->sdsm_info.non_max_col_n ++;
         }
     }
-    sdsm_info.is_sdsm = (same_sum_count == dim + dim);
-    sdsm_info.max_row_col_sum = max_sum;
+    m->sdsm_info.is_sdsm = (same_sum_count == m->dim + m->dim);
+    m->sdsm_info.max_row_col_sum = max_sum;
 }

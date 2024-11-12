@@ -1,9 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <vector>
 #include "alltoall_define.h"
-using namespace std;
 
 struct row_col_info_t {
     uint idx;
@@ -13,36 +11,30 @@ struct row_col_info_t {
 struct sdsm_info_t{
     bool is_sdsm;
     uint max_row_col_sum;
-    vector<struct row_col_info_t> non_max_row;
-    vector<struct row_col_info_t> non_max_col;
+    struct row_col_info_t non_max_row[MAX_SERVER_NUM];
+    uint non_max_row_n;
+    struct row_col_info_t non_max_col[MAX_SERVER_NUM];
+    uint non_max_col_n;
 };
 
 
-class Matrix {
-private:
+struct Matrix {
     uint ** data;
     uint dim;
     uint unit;
-public:
     struct sdsm_info_t sdsm_info;
-    Matrix(): data(NULL), dim(0), unit(1){sdsm_info.is_sdsm=false;sdsm_info.max_row_col_sum=0;};
-    Matrix(uint _dim, uint _unit = 1);
-    Matrix(uint** _data, uint _dim, uint _unit = 1);
-    Matrix(uint* _data, uint _dim, uint _unit = 1);
-    Matrix(Matrix * mat);
-    ~Matrix();
-    void copy(Matrix * mat);
-    void copy(uint * _data, uint _dim);
-    bool valid() {return dim > 0 && data != NULL;}
-    bool valid_sdsm() {return dim > 0 && data != NULL && sdsm_info.is_sdsm;}
-    uint get_dim() {return dim;}
-    uint get_unit() {return unit;}
-    uint get(uint x, uint y);
-    bool set(uint val, uint x, uint y);
-    bool add(uint val, uint x, uint y);
-    bool subtract(uint val, uint x, uint y);
-    void scale(uint factor);
-    bool equal_to(Matrix * mat);
-    void get_sdsm_info();
-    void print();
 };
+
+void init_matrix(struct Matrix *m);
+void free_matrix(struct Matrix *m);
+void copy_matrix(struct Matrix *m, uint * _data, uint source_dim);
+bool valid_matrix(struct Matrix *m) {return m->dim > 0 && m->data != NULL;}
+bool valid_sdsm_matrix(struct Matrix *m) {return m->dim > 0 && m->data != NULL && m->sdsm_info.is_sdsm;}
+uint get_matrix(struct Matrix *m, uint x, uint y);
+bool set_matrix(struct Matrix *m, uint val, uint x, uint y);
+bool add_matrix(struct Matrix *m, uint val, uint x, uint y);
+bool subtract_matrix(struct Matrix *m, uint val, uint x, uint y);
+void scale_matrix(struct Matrix *m, uint factor);
+bool equal_to_matrix(struct Matrix *a, struct Matrix *b);
+void get_sdsm_info_matrix(struct Matrix *m);
+

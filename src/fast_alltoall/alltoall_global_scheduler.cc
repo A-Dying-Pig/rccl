@@ -3,67 +3,43 @@
 #include <chrono>
 #include <iostream>
 #include <hip/hip_runtime.h>
-using namespace chrono;
-using namespace std;
 
-GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, vector<LocalScheduler*> _locals){
-    server_n = _server_n;
-    gpu_n = _gpu_n;
-    locals = _locals;
-    // contruct the matrix from the local scheduler result
-    uint * data;
-    hipMallocManaged((void**) &data, sizeof(uint) * server_n * server_n);
-    // uint *data = new uint[server_n * server_n];
-    for (auto local = locals.begin(); local != locals.end(); local++){
-       uint src_svr = (*local) -> get_server_id();
-       for (uint j = 0; j < server_n; j++){
-            data[src_svr * server_n + j] = (*local)->server2server_data[j];
-       }
-    }
-    mat.copy(data, server_n);
-    // cout << "Global scheduler prints server2server matrix: " << endl;
-    // mat.print();
-    // delete[] data;
-    hipFree((void*)data);
-}
 
-GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, uint * demand_matrix){
-    server_n = _server_n;
-    gpu_n = _gpu_n;
-    uint dim = gpu_n * server_n;
-    for (uint s = 0; s < server_n; s++){
-        LocalScheduler* ls;
-        hipMallocManaged((void**)&ls, sizeof(LocalScheduler));
-        ls->LocalScheduler(demand_matrix + s * dim * gpu_n, gpu_n, server_n, s);
-        // LocalScheduler* ls = new LocalScheduler(demand_matrix + s * dim * gpu_n, gpu_n, server_n, s);
-        locals.push_back(ls);
+void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gpu_n, uint * demand_matrix){
+    gs->server_n = _server_n;
+    gs->gpu_n = _gpu_n;
+    uint dim = gs->gpu_n * gs->server_n;
+    for (uint s = 0; s < gs->server_n; s++){
+        hipMallocManaged((void**)&gs->locals[s], sizeof(LocalScheduler));
+        init_local_scheduler(gs->locals[s], demand_matrix + s * dim * gs->gpu_n, gs->gpu_n, gs->server_n, s);
     }
     uint * data;
-    hipMallocManaged((void**)&data, sizeof(uint) * server_n * server_n);
+    hipMallocManaged((void**)&data, sizeof(uint) * gs->server_n * gs->server_n);
     // uint *data = new uint[server_n * server_n];
-    for (auto local = locals.begin(); local != locals.end(); local++){
-       uint src_svr = (*local) -> get_server_id();
-       for (uint j = 0; j < server_n; j++){
-            data[src_svr * server_n + j] = (*local)->server2server_data[j];
-            // cout << "server id : " << src_svr <<" to server " << j <<" data : " <<  (*local)->server2server_data[j] <<endl;
+    for (uint s = 0; s < gs->server_n; s++){
+       uint src_svr = gs->locals[s] -> server_id;
+        for (uint j = 0; j < gs->server_n; j++){
+            data[src_svr * gs->server_n + j] =  gs->locals[s]->server2server_data[j];
        }
     }
-    // print_matrix(data, server_n, server_n);
-    mat.copy(data, server_n);
-    // cout << "Global scheduler prints server2server matrix: " << endl;
-    // mat.print();
-    // delete[] data;
+    init_matrix(&gs->mat);
+    copy_matrix(&gs->mat, data, gs->server_n);
     hipFree((void*) data);
+
+    hipMallocManaged((void**) &gs->sched, sizeof(scheduling_result_t));
+    hipMemset(gs->sched, 0, sizeof(scheduling_result_t));
 }
 
-GlobalScheduler::~GlobalScheduler(){
-    for (auto it = locals.begin(); it != locals.end(); it++){
-        // delete *it;
-        hipFree(*it);
+void free_global_scheduler(struct GlobalScheduler * gs){
+    free_matrix(&gs->mat);
+     for (uint s = 0; s < gs->server_n; s++){
+        free_local_scheduler(gs->locals[s]);
     }
+    hipFree(gs->sched);
 }
 
-struct scheduling_result_t GlobalScheduler::run(){
+
+void run_scheduler(struct GlobalScheduler * gs){
     FastAll2All all2all(&mat, gpu_n);
     all2all.to_scaled_doubly_stochastic_matrix();
     all2all.decompose();
