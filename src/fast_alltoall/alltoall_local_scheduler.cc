@@ -2,6 +2,7 @@
 #include <vector>
 #include <iomanip>
 #include <stdio.h>
+#include <hip/hipruntime.h>
 
 
 using namespace std;
@@ -11,14 +12,20 @@ LocalScheduler::LocalScheduler(uint* _data, uint _gpu_n, uint _server_n, uint _s
     server_n = _server_n;
     server_id = _server_id;
     uint dim = gpu_n * server_n;
-    data = new uint*[gpu_n];
-    balanced_data = new uint*[gpu_n];
-    data_after_balance = new data_t*[gpu_n]; 
+    hipMallocManaged((void**) &data, sizeof(uint*) * gpu_n);
+    hipMallocManaged((void**) &balanced_data, sizeof(uint*) * gpu_n);
+    hipMallocManaged((void**) &data_after_balance, sizeof(data_t*) * gpu_n);
+    // data = new uint*[gpu_n];
+    // balanced_data = new uint*[gpu_n];
+    // data_after_balance = new data_t*[gpu_n];
     uint idx = 0;
     for (uint i = 0; i < gpu_n; i++){
-        data[i] = new uint[dim];
-        balanced_data[i] = new uint[dim];
-        data_after_balance[i] = new data_t[dim];
+        hipMallocManaged(data[i], sizeof(uint) * dim);
+        hipMallocManaged(balanced_data[i], sizeof(uint) * dim);
+        hipMallocManaged(data_after_balance[i], sizeof(data_t) * dim);
+        // data[i] = new uint[dim];
+        // balanced_data[i] = new uint[dim];
+        // data_after_balance[i] = new data_t[dim];
         for (uint j = 0; j < dim; j++){
             data[i][j] = _data[idx];
             balanced_data[i][j] = _data[idx];
@@ -31,31 +38,47 @@ LocalScheduler::LocalScheduler(uint* _data, uint _gpu_n, uint _server_n, uint _s
             idx++;
         }
     }
-    server2server_data = new uint[server_n];
-    memset(server2server_data, 0, server_n * sizeof(uint));
-    row_sum = new uint[gpu_n * server_n];
-    memset(row_sum, 0, gpu_n * server_n * sizeof(uint));
-    intrinsic_all2all = new uint[gpu_n * gpu_n];
-    memset(intrinsic_all2all, 0, gpu_n * gpu_n * sizeof(uint));
+    hipMallocManaged((void**)&server2server_data, sizeof(uint) * server_n);
+    hipMemset(server2server_data, 0, server_n * sizeof(uint));
+    hipMallocManaged((void**)&row_sum, sizeof(uint) * gpu_n * server_n);
+    hipMemset(row_sum, 0, gpu_n * server_n * sizeof(uint));
+    hipMallocManaged((void**)&intrinsic_all2all, sizeof(uint) * gpu_n * gpu_n);
+    hipMemset(intrinsic_all2all, 0, gpu_n * gpu_n * sizeof(uint));
+    // server2server_data = new uint[server_n];
+    // memset(server2server_data, 0, server_n * sizeof(uint));
+    // row_sum = new uint[gpu_n * server_n];
+    // memset(row_sum, 0, gpu_n * server_n * sizeof(uint));
+    // intrinsic_all2all = new uint[gpu_n * gpu_n];
+    // memset(intrinsic_all2all, 0, gpu_n * gpu_n * sizeof(uint));
     prepare_load_balance();
 }
 
 LocalScheduler::~LocalScheduler(){
     for (uint i = 0; i < gpu_n; i++){
-        delete[] data[i];
-        delete[] balanced_data[i];
-        delete[] data_after_balance[i];
+        hipFree(data[i]);
+        hipFree(balanced_data[i]);
+        hipFree(data_after_balance[i]);
+        // delete[] data[i];
+        // delete[] balanced_data[i];
+        // delete[] data_after_balance[i];
     }
-    delete[] data;
-    delete[] balanced_data;
-    delete[] data_after_balance;
-    delete[] server2server_data;
-    delete[] row_sum;
-    delete[] intrinsic_all2all;
+    hipFree(data);
+    hipFree(balanced_data);
+    hipFree(data_after_balance);
+    hipFree(server2server_data);
+    hipFree(row_sum);
+    hipFree(intrinsic_all2all);
+    // delete[] data;
+    // delete[] balanced_data;
+    // delete[] data_after_balance;
+    // delete[] server2server_data;
+    // delete[] row_sum;
+    // delete[] intrinsic_all2all;
 }
 
 void LocalScheduler::prepare_load_balance(){
-    memset(row_sum, 0, gpu_n * server_n * sizeof(uint));
+    hipMemset(row_sum, 0, gpu_n * server_n * sizeof(uint));
+    // memset(row_sum, 0, gpu_n * server_n * sizeof(uint));
     for (uint i = 0; i < server_n; i++){
         if (i == server_id){
             server2server_data[i] = 0;
@@ -109,7 +132,7 @@ void LocalScheduler::balance_one_server2(uint to_server_id, BalancePtr r){
                 // check each element of the big row
                 int mv_data = MIN(MIN(rm_data, data_after_balance[*big_row][to_server_id * gpu_n + j].sum), server2server_data[to_server_id] - row_sum[to_server_id * gpu_n + *small_row]);
                 // cout << "LB scheduler, mv data: " << mv_data <<", channel: "<< j << ", src gpu: " << *big_row << ", dst gpu: " << *small_row << endl;
-                
+
                 if (mv_data == 0){
                     continue;
                 }
@@ -118,7 +141,7 @@ void LocalScheduler::balance_one_server2(uint to_server_id, BalancePtr r){
                 row_sum[to_server_id * gpu_n + *small_row] += mv_data;
                 row_sum[to_server_id * gpu_n + *big_row] -= mv_data;
                 r[(*big_row) * gpu_n + (*small_row)].sz[j] += mv_data;
-                
+
                 // cout << "lb server" << server_id << ", dst server" << to_server_id << ", mv data: " << mv_data<<", big row: " << *big_row << ", small row: " << *small_row <<", lb dst gpu: " << j << endl;
                 data_after_balance[*big_row][to_server_id * gpu_n + j].sz[*big_row] -= mv_data;
                 data_after_balance[*big_row][to_server_id * gpu_n + j].sum -= mv_data;
@@ -194,10 +217,12 @@ void LocalScheduler::balance_one_server2(uint to_server_id, BalancePtr r){
 
 void LocalScheduler::restore_one_server2(uint to_server_id, vector<ChannelPtr> channel, vector<RestorePtr> r, vector<DirectCpyPtr> dcpy, uint freq){
 
-    uint * row_transfer = new uint[gpu_n];
     if (to_server_id == server_id){
         return;
     }
+    // uint * row_transfer = new uint[gpu_n];
+    uint * row_transfer;
+    hipMallocManaged((void**) &row_transfer, sizeof(uint) * gpu_n);
     for (uint i = 0; i < gpu_n; i++){    // src gpu
 
         row_transfer[i] = 0;
@@ -231,7 +256,8 @@ void LocalScheduler::restore_one_server2(uint to_server_id, vector<ChannelPtr> c
         }
 
     }
-    delete[] row_transfer;
+    hipFree(row_transfer);
+    // delete[] row_transfer;
 
 }
 

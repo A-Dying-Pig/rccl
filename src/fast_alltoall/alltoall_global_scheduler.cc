@@ -2,6 +2,7 @@
 #include "alltoall_define.h"
 #include <chrono>
 #include <iostream>
+#include <hip/hipruntime.h>
 using namespace chrono;
 using namespace std;
 
@@ -10,7 +11,9 @@ GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, vector<LocalSchedu
     gpu_n = _gpu_n;
     locals = _locals;
     // contruct the matrix from the local scheduler result
-    uint *data = new uint[server_n * server_n];
+    uint * data;
+    hipMallocManaged((void**) &data, sizeof(uint) * server_n * server_n);
+    // uint *data = new uint[server_n * server_n];
     for (auto local = locals.begin(); local != locals.end(); local++){
        uint src_svr = (*local) -> get_server_id();
        for (uint j = 0; j < server_n; j++){
@@ -20,7 +23,8 @@ GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, vector<LocalSchedu
     mat.copy(data, server_n);
     // cout << "Global scheduler prints server2server matrix: " << endl;
     // mat.print();
-    delete[] data;
+    // delete[] data;
+    hipeFree((void*)data);
 }
 
 GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, uint * demand_matrix){
@@ -28,10 +32,15 @@ GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, uint * demand_matr
     gpu_n = _gpu_n;
     uint dim = gpu_n * server_n;
     for (uint s = 0; s < server_n; s++){
-        LocalScheduler* ls = new LocalScheduler(demand_matrix + s * dim * gpu_n, gpu_n, server_n, s);
+        LocalScheduler* ls;
+        hipMallocManaged((void**)&ls, sizeof(LocalScheduler));
+        ls->LocalScheduler(demand_matrix + s * dim * gpu_n, gpu_n, server_n, s);
+        // LocalScheduler* ls = new LocalScheduler(demand_matrix + s * dim * gpu_n, gpu_n, server_n, s);
         locals.push_back(ls);
     }
-    uint *data = new uint[server_n * server_n];
+    uint * data;
+    hipMallocManaged((void**)&data, sizeof(uint) * server_n * server_n);
+    // uint *data = new uint[server_n * server_n];
     for (auto local = locals.begin(); local != locals.end(); local++){
        uint src_svr = (*local) -> get_server_id();
        for (uint j = 0; j < server_n; j++){
@@ -43,13 +52,14 @@ GlobalScheduler::GlobalScheduler(uint _server_n, uint _gpu_n, uint * demand_matr
     mat.copy(data, server_n);
     // cout << "Global scheduler prints server2server matrix: " << endl;
     // mat.print();
-    delete[] data;
-
+    // delete[] data;
+    hipFree((void*) data);
 }
 
 GlobalScheduler::~GlobalScheduler(){
     for (auto it = locals.begin(); it != locals.end(); it++){
-        delete *it;
+        // delete *it;
+        hipFree(*it);
     }
 }
 
@@ -71,14 +81,16 @@ struct scheduling_result_t GlobalScheduler::run(){
 
     /* Start Pipelining*/
     struct scheduling_result_t schd_ret;
-    
+
     // generate schedule for intra-server all2all - balance first
     // balance once
     vector <vector<BalancePtr> > bs(locals_sz, vector<BalancePtr>(server_n, NULL));
     for (lid = 0; lid < locals_sz; lid++){
         for (uint s = 0; s < server_n; s++){
-            bs[lid][s] = new balance_data_t[gpu_n * gpu_n];
-            memset(bs[lid][s], 0, sizeof(balance_data_t) * gpu_n * gpu_n);
+            hipMallocManaged((void**) bs[lid][s], sizeof(balance_data_t) * gpu_n * gpu_n);
+            hipMemset(bs[lid][s], 0, sizeof(balance_data_t) * gpu_n * gpu_n);
+            // bs[lid][s] = new balance_data_t[gpu_n * gpu_n];
+            // memset(bs[lid][s], 0, sizeof(balance_data_t) * gpu_n * gpu_n);
         }
     }
 
@@ -95,8 +107,11 @@ struct scheduling_result_t GlobalScheduler::run(){
 
     // get intrinsic all-to-all
     for (uint i = 0; i < locals_sz; i++){
-        TransferMatrixElement * intra_ata = new TransferMatrixElement[gpu_n * gpu_n];
-        memcpy(intra_ata, locals[i]->get_intrinsic_all2all(), gpu_n * gpu_n * sizeof(TransferMatrixElement));
+        TransferMatrixElement * intra_ata;
+        hipMallocManaged((void**) &intra_ata, sizeof(TransferMatrixElement) * gpu_n * gpu_n);
+        hipMemcpy(intra_ata, locals[i]->get_intrinsic_all2all(), gpu_n * gpu_n * sizeof(TransferMatrixElement));
+        // TransferMatrixElement * intra_ata = new TransferMatrixElement[gpu_n * gpu_n];
+        // memcpy(intra_ata, locals[i]->get_intrinsic_all2all(), gpu_n * gpu_n * sizeof(TransferMatrixElement));
         schd_ret.intrinsic_ata.push_back(intra_ata);
     }
 
@@ -108,14 +123,21 @@ struct scheduling_result_t GlobalScheduler::run(){
     for (pid = 0; pid != pset_sz; pid++){
         for (lid = 0; lid != locals_sz; lid ++){
             for (uint cid = 0; cid != gpu_n; cid++){
-                ds[pid][lid][cid] = new recv_data_t[gpu_n * gpu_n];
-                memset(ds[pid][lid][cid], 0,  sizeof(recv_data_t) * gpu_n * gpu_n);
-                d_cpy[pid][lid][cid] = new recv_data_t[gpu_n];
-                memset(d_cpy[pid][lid][cid], 0,  sizeof(recv_data_t) * gpu_n);
-                chnl[pid][lid][cid] = new TransferMatrixElement[gpu_n * gpu_n];
-                memset(chnl[pid][lid][cid], 0,  sizeof(TransferMatrixElement) * gpu_n * gpu_n);
+                hipMallocManaged((void**)&ds[pid][lid][cid], sizeof(recv_data_t) * gpu_n * gpu_n);
+                hipMemset(ds[pid][lid][cid], 0, sizeof(recv_data_t) * gpu_n * gpu_n);
+                hipMallocManaged((void**)&d_cpy[pid][lid][cid], sizeof(recv_data_t) * gpu_n * gpu_n);
+                hipMemset(d_cpy[pid][lid][cid], 0,  sizeof(recv_data_t) * gpu_n);
+                hipMallocManaged((void**)&chnl[pid][lid][cid], sizeof(TransferMatrixElement) * gpu_n * gpu_n);
+                hipMemset(chnl[pid][lid][cid], 0,  sizeof(TransferMatrixElement) * gpu_n * gpu_n);
+
+                // ds[pid][lid][cid] = new recv_data_t[gpu_n * gpu_n];
+                // memset(ds[pid][lid][cid], 0,  sizeof(recv_data_t) * gpu_n * gpu_n);
+                // d_cpy[pid][lid][cid] = new recv_data_t[gpu_n];
+                // memset(d_cpy[pid][lid][cid], 0,  sizeof(recv_data_t) * gpu_n);
+                // chnl[pid][lid][cid] = new TransferMatrixElement[gpu_n * gpu_n];
+                // memset(chnl[pid][lid][cid], 0,  sizeof(TransferMatrixElement) * gpu_n * gpu_n);
             }
-           
+
         }
     }
 

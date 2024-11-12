@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <iomanip>
 #include "alltoall_matrix.h"
+#include <hip/hipruntime.h>
 
 using namespace std;
 
@@ -10,9 +11,11 @@ Matrix::Matrix(uint _dim, uint _unit){
     dim = _dim;
     sdsm_info.max_row_col_sum = 0;
     sdsm_info.is_sdsm = false;
-    data = new uint*[_dim];
+    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
+    // data = new uint*[_dim];
     for (uint i = 0; i < _dim; i++){
-        data[i] = new uint[_dim];
+        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+        // data[i] = new uint[_dim];
         for (uint j = 0; j < _dim; j++){
             data[i][j] = 0;
         }
@@ -24,10 +27,12 @@ Matrix::Matrix(uint* _data, uint _dim, uint _unit){
     dim = _dim;
     sdsm_info.max_row_col_sum = 0;
     sdsm_info.is_sdsm = false;
-    data = new uint*[_dim];
+    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
+    // data = new uint*[_dim];
     uint idx = 0;
     for (uint i = 0; i < _dim; i ++){
-        data[i] = new uint[_dim];
+        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+        // data[i] = new uint[_dim];
         for (uint j = 0; j < _dim; j++){
             data[i][j] = _data[idx];
             idx ++;
@@ -40,9 +45,11 @@ Matrix::Matrix(uint** _data, uint _dim, uint _unit){
     dim = _dim;
     sdsm_info.max_row_col_sum = 0;
     sdsm_info.is_sdsm = false;
-    data = new uint*[_dim];
+    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
+    // data = new uint*[_dim];
     for (uint i = 0; i < _dim; i ++){
-        data[i] = new uint[_dim];
+        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+        // data[i] = new uint[_dim];
         for (uint j = 0; j < _dim; j++){
             data[i][j] = _data[i][j];
         }
@@ -55,9 +62,11 @@ Matrix::Matrix(Matrix * mat){
     dim = mat->get_dim();
     unit = mat->get_unit();
     sdsm_info = mat->sdsm_info;
-    data = new uint*[dim];
+    hipMallocManaged((void**) &data, sizeof(uint*) * _dim);
+    // data = new uint*[dim];
     for (uint i = 0; i < dim; i++){
-        data[i] = new uint[dim];
+        hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+        // data[i] = new uint[dim];
         for (uint j = 0; j < dim; j++){
             data[i][j] = mat->get(i,j);
         }
@@ -76,14 +85,18 @@ void Matrix::copy(Matrix * mat){
     if (dim > 0 && data != NULL && dim != source_dim){
         // matrix dimension different - release memory first
         for (uint i = 0; i < dim; i++){
-            delete[] data[i];
+            hipFree(data[i]);
+            // delete[] data[i];
         }
-        delete[] data;
+        hipFree(data);
+        // delete[] data;
     }
     if (dim != source_dim){
-        data = new uint*[source_dim];
+        hipMallocManaged((void**) &data, sizeof(uint*) * source_dim);
+        // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            data[i] = new uint[source_dim];
+            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim)
+            // data[i] = new uint[source_dim];
         }
     }
     dim = source_dim;
@@ -98,14 +111,18 @@ void Matrix::copy(uint * _data, uint source_dim){
     if (dim > 0 && data != NULL && dim != source_dim){
         // matrix dimension different - release memory first
         for (uint i = 0; i < dim; i++){
-            delete[] data[i];
+            hipFree(data[i]);
+            // delete[] data[i];
         }
-        delete[] data;
+        hipFree(data);
+        // delete[] data;
     }
     if (dim != source_dim){
-        data = new uint*[source_dim];
+        hipMallocManaged((void**) &data, sizeof(uint*) * source_dim);
+        // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            data[i] = new uint[source_dim];
+            hipMallocManaged((void**) &data[i], sizeof(uint) * source_dim)
+            // data[i] = new uint[source_dim];
         }
     }
     dim = source_dim;
@@ -136,9 +153,11 @@ bool Matrix::equal_to(Matrix * mat){
 Matrix::~Matrix(){
     // cout << "releasing matrix memory" << endl;
     for (uint i = 0; i < dim; i++){
-        delete[] data[i];
+        hipFree(data[i]);
+        // delete[] data[i];
     }
-    delete[] data;
+    hipFree(data);
+    // delete[] data;
 }
 
 uint Matrix::get(uint x, uint y){

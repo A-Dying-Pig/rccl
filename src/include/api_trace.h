@@ -66,7 +66,6 @@ typedef ncclResult_t (*ncclAllToAll_fn_t)(const void* sendbuff, void* recvbuff,
                                           size_t count, ncclDataType_t datatype,
                                           ncclComm_t comm, hipStream_t stream);
 typedef ncclResult_t (*ncclAllToAllv_fn_t)(
-    uint rankid,
     const void* sendbuff, const size_t sendcounts[], const size_t sdispls[],
     void* recvbuff, const size_t recvcounts[], const size_t rdispls[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
@@ -76,8 +75,8 @@ New AllToAll API
 */
 typedef ncclResult_t (*ncclAllToAllv2_fn_t)(
     uint rankid,
-    void* sendbuff, size_t sendcounts[], size_t sendpos[], 
-    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 

@@ -39,8 +39,8 @@ ncclAllToAllv_impl(const void* sendbuff, const size_t sendcounts[],
 ncclResult_t
 ncclAllToAllv2_impl(
     uint rankid,
-    void* sendbuff, size_t sendcounts[], size_t sendpos[], 
-    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
@@ -223,7 +223,7 @@ RCCL_ASSERT_OFFSET(rcclApiFuncTable, ncclAllToAllv2_fn, 37);
 
 #undef RCCL_ASSERT_OFFSET
 
-static_assert(sizeof(rcclApiFuncTable) == compute_table_size(37),
+static_assert(sizeof(rcclApiFuncTable) == compute_table_size(38),
               "Update table major/step version and add a new offset assertion if this "
               "fails to compile");
 
@@ -319,8 +319,8 @@ NCCL_API(ncclResult_t, ncclAllToAllv, const void* sendbuff, const size_t sendcou
          const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm,
          hipStream_t stream);
 
-NCCL_API(ncclResult_t, ncclAllToAllv2, uint rankid, void* sendbuff, size_t sendcounts[], size_t sendpos[], 
-    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+NCCL_API(ncclResult_t, ncclAllToAllv2, uint rankid, void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     void* tempbuff, void * syncbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
@@ -445,8 +445,8 @@ ncclAllToAllv(const void* sendbuff, const size_t sendcounts[], const size_t sdis
 }
 
 ncclResult_t
-ncclAllToAllv2(uint rankid, void* sendbuff, size_t sendcounts[], size_t sendpos[], 
-    void* recvbuff, const size_t recvcounts[], size_t recvpos[], 
+ncclAllToAllv2(uint rankid, void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     void* tempbuff, void * syncbuff,  struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream)
 {

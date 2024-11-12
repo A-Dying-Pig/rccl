@@ -33,3 +33,4 @@ typedef uint * ChannelPtr;
 #define MAX_ELEMENT_NUM 3
 
 #define GPU_NUM_PER_SERVER 8
+#define MAX_SERVER_NUM 16

@@ -538,6 +538,16 @@ set(SRC_FILES
   src/transport/nvls.cc
   src/transport/p2p.cc
   src/transport/shm.cc
+  src/fast_alltoall/alltoall_algorithm.cc
+  src/fast_alltoall/alltoall_global_scheduler.cc
+  src/fast_alltoall/alltoall_local_scheduler.cc
+  src/fast_alltoall/alltoall_matrix.cc
+  src/fast_alltoall/collective_alltoall.cc
+  src/include/alltoall_algorithm.h
+  src/include/alltoall_define.h
+  src/include/alltoall_global_scheduler.h
+  src/include/alltoall_local_scheduler.h
+  src/include/alltoall_matrix.h
 )
 
 if (ENABLE_MSCCL_KERNEL)
