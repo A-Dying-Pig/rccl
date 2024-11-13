@@ -29,8 +29,8 @@ void init_matrix(struct Matrix *m, uint _dim = 0);
 void free_matrix(struct Matrix *m);
 void copy_matrix(struct Matrix *m, uint * _data, uint source_dim);
 void copy_matrix(struct Matrix *dst, struct Matrix * src);
-bool valid_matrix(struct Matrix *m) {return m->dim > 0 && m->data != NULL;}
-bool valid_sdsm_matrix(struct Matrix *m) {return m->dim > 0 && m->data != NULL && m->sdsm_info.is_sdsm;}
+bool valid_matrix(struct Matrix *m);
+bool valid_sdsm_matrix(struct Matrix *m);
 uint get_matrix(struct Matrix *m, uint x, uint y);
 bool set_matrix(struct Matrix *m, uint val, uint x, uint y);
 bool add_matrix(struct Matrix *m, uint val, uint x, uint y);

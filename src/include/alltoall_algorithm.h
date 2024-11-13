@@ -32,8 +32,8 @@ void map_insert(struct map_data_t * array, uint * sz, uint key, uint val);
 bool map_lookup(struct map_data_t * array, uint sz, uint key, uint * val);
 
 void init_permutation_set(struct PermutationSet * ps, uint _freq = 1, uint _sf = 1, uint _dim = 0);
-void set_freq_permutation_set(struct PermutationSet * ps, uint freq){ps -> frequency = freq;}
-uint get_freq_permutation_set(struct PermutationSet * ps){return ps -> frequency * ps -> scaling_factor;}
+void set_freq_permutation_set(struct PermutationSet * ps, uint freq);
+uint get_freq_permutation_set(struct PermutationSet * ps);
 void to_server_permutation_set(struct PermutationSet * ps, uint server_n, uint * r);
 void from_server_permutation_set(struct PermutationSet * ps, uint server_n, uint * r);
 void print_permutation_set(struct PermutationSet * ps);

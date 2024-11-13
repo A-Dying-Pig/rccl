@@ -225,3 +225,11 @@ void get_sdsm_info_matrix(struct Matrix *m){
     m->sdsm_info.is_sdsm = (same_sum_count == m->dim + m->dim);
     m->sdsm_info.max_row_col_sum = max_sum;
 }
+
+bool valid_matrix(struct Matrix *m) {
+    return m->dim > 0 && m->data != NULL;
+}
+
+bool valid_sdsm_matrix(struct Matrix *m) {
+    return m->dim > 0 && m->data != NULL && m->sdsm_info.is_sdsm;
+}

@@ -269,3 +269,11 @@ bool map_lookup(struct map_data_t * array, uint sz, uint key, uint * val){
     }
     return false;
 }
+
+void set_freq_permutation_set(struct PermutationSet * ps, uint freq){
+    ps -> frequency = freq;
+}
+
+uint get_freq_permutation_set(struct PermutationSet * ps){
+    return ps -> frequency * ps -> scaling_factor;
+}
