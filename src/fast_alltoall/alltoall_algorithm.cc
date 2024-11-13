@@ -4,15 +4,12 @@
 #include <iomanip>
 
 
-
-
-
 void init_fastall2all(struct FastAll2All * ata, Matrix * _mat){
     init_matrix(&(ata->mat));
     init_matrix(&(ata->SDS_mat));
     copy_matrix(&(ata->mat), _mat);
     uint dim = ata->mat.dim;
-    for (uint i = 0; i < dim * 2, i ++){
+    for (uint i = 0; i < dim * 2; i ++){
         ata->hungarian_info.matching[i] = -1;
         ata->hungarian_info.visit[i] = false;
     }
@@ -40,7 +37,7 @@ void to_scaled_doubly_stochastic_matrix_fastall2all(struct FastAll2All * ata){
         for (uint row_id = 0; row_id < ata->SDS_mat.sdsm_info.non_max_row_n; row_id++){
             struct row_col_info_t * row = &(ata->SDS_mat.sdsm_info.non_max_row[row_id]);
             for (uint col_id = 0; col_id < ata->SDS_mat.sdsm_info.non_max_col_n; col_id++){
-                struct row_col_info_t * col =  (ata->SDS_mat.sdsm_info.non_max_col[col_id]);
+                struct row_col_info_t * col = &(ata->SDS_mat.sdsm_info.non_max_col[col_id]);
                 if (col -> sum == max_sum){
                     continue;
                 }
@@ -86,7 +83,7 @@ uint hungarian_fastall2all(struct FastAll2All * ata){
             for (uint i = 0; i < dim * 2; i++){
                 ata->hungarian_info.visit[i] = false;
             }
-            if(hungarian_dfs(ata, u))
+            if(hungarian_dfs_fastall2all(ata, u))
                 match_num ++;
         }
     }
@@ -96,7 +93,7 @@ uint hungarian_fastall2all(struct FastAll2All * ata){
 
 bool hungarian_dfs_fastall2all(struct FastAll2All * ata, uint u){
     for (uint i = 0; i < ata->hungarian_info.row_to_col_n[u]; i++){
-        uint col =  ata->hungarian_info.row_to_col[i];
+        uint col =  ata->hungarian_info.row_to_col[u][i];
         if (!ata->hungarian_info.visit[col]){
             ata->hungarian_info.visit[col] = true;
             if (ata->hungarian_info.matching[col] == -1 || hungarian_dfs_fastall2all(ata, ata->hungarian_info.matching[col])){
@@ -188,9 +185,9 @@ bool verify_decomposition_fastall2all(struct FastAll2All * ata){
     struct Matrix r;
     init_matrix(&r, dim);
     for (uint z = 0; z < ata->p_sets_n; z ++){
-        for (uint i = 0; i < dim, i++){
+        for (uint i = 0; i < dim; i++){
             uint non_empty_col_id;
-            if (map_lookup(&ata->p_sets[z].mp, ata->p_sets[z].mp_n, i, &non_empty_col_id)){
+            if (map_lookup(ata->p_sets[z].mp, ata->p_sets[z].mp_n, i, &non_empty_col_id)){
                 add_matrix(&r, ata->p_sets[z].frequency, i, non_empty_col_id);
             }else{
                 LOG("map error lookup");
@@ -199,7 +196,7 @@ bool verify_decomposition_fastall2all(struct FastAll2All * ata){
         }
     }
     get_sdsm_info_matrix(&r);
-    to_scaled_doubly_stochastic_matrix_fastall2all(&r);
+    to_scaled_doubly_stochastic_matrix_fastall2all(ata);
     return equal_to_matrix(&ata->SDS_mat, &r);
 }
 
@@ -207,7 +204,7 @@ void print_permutation_set(struct PermutationSet * ps){
     cout << "Permutation Set, dim: " << ps->dim << endl;
     for(uint i = 0; i < ps->dim; i ++){
         uint non_empty_col_id;
-        if (map_lookup(&ps->mp, ps->mp_n, i, &non_empty_col_id)){
+        if (map_lookup(ps->mp, ps->mp_n, i, &non_empty_col_id)){
             for (uint j = 0; j < ps->dim; j++){
                 cout << setw(10);
                 if (non_empty_col_id == j){
@@ -228,7 +225,7 @@ void print_permutation_set(struct PermutationSet * ps){
 void to_server_permutation_set(struct PermutationSet * ps, uint server_n, uint * r){
     for (uint i = 0; i < server_n; i++){
         uint non_empty_col_id;
-        if (map_lookup(&ps->mp, ps->mp_n, i, &non_empty_col_id)){
+        if (map_lookup(ps->mp, ps->mp_n, i, &non_empty_col_id)){
             r[i] = non_empty_col_id;
         }else{
             LOG("map error lookup");
@@ -240,7 +237,7 @@ void to_server_permutation_set(struct PermutationSet * ps, uint server_n, uint *
 void from_server_permutation_set(struct PermutationSet * ps, uint server_n, uint * r){
     for (uint i = 0; i < server_n; i++){
         uint non_empty_col_id;
-        if (map_lookup(&ps->mp, ps->mp_n, i, &non_empty_col_id)){
+        if (map_lookup(ps->mp, ps->mp_n, i, &non_empty_col_id)){
             r[non_empty_col_id] = i;
         }else{
             LOG("map error lookup");
@@ -249,7 +246,7 @@ void from_server_permutation_set(struct PermutationSet * ps, uint server_n, uint
     }
 }
 
-void init_permutation_set(struct PermutationSet * ps, uint _freq = 1, uint _sf = 1, uint _dim = 0) {
+void init_permutation_set(struct PermutationSet * ps, uint _freq, uint _sf, uint _dim) {
     ps->frequency = _freq;
     ps->scaling_factor = _sf;
     ps->dim = _dim;
@@ -263,7 +260,7 @@ void map_insert(struct map_data_t * array, uint * sz, uint key, uint val){
     (*sz) ++;
 }
 
-uint map_lookup(struct map_data_t * array, uint sz, uint key, uint * val){
+bool map_lookup(struct map_data_t * array, uint sz, uint key, uint * val){
     for (uint i = 0; i < sz; i++){
         if (array[i].key == key){
             (*val) = array[i].val;

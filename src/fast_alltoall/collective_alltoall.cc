@@ -171,7 +171,7 @@ ncclAllToAllv2_impl(uint rankid, void* sendbuff, size_t sendcounts[], size_t sen
         prev_src_server = src_server;
     struct scheduling_step_t prev_step = cur_step;
     struct recv_data_t * restore_send_sched, * restore_recv_sched, * dcopy_sched;
-    uint step_n = (sched -> steps).size();
+    uint step_n = sched -> step_n;
 
     for (uint step_id = 1; step_id < step_n - 1; step_id ++){
         cur_step = (sched -> steps)[step_id];

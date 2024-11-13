@@ -84,7 +84,7 @@ void prepare_load_balance(struct LocalScheduler * ls){
             ls->server2server_data[i] = 0;
             for (uint j = 0; j < ls->gpu_n; j++){
                 for (uint k = 0; k < ls->gpu_n; k++){
-                    ls->intrinsic_all2all[j * ls->gpu_n + k] = data[j][ls->server_id * ls->gpu_n + k];
+                    ls->intrinsic_all2all[j * ls->gpu_n + k] = ls->data[j][ls->server_id * ls->gpu_n + k];
                 }
             }
             continue;
@@ -93,7 +93,7 @@ void prepare_load_balance(struct LocalScheduler * ls){
             // for each row at each tile
             ls->row_sum[i * ls->gpu_n + j] = 0;
             for (uint k = 0; k < ls->gpu_n; k++){
-                ls->row_sum[i * ls->gpu_n + j] += data[j][i * ls->gpu_n + k];
+                ls->row_sum[i * ls->gpu_n + j] += ls->data[j][i * ls->gpu_n + k];
             }
         }
 
@@ -110,7 +110,7 @@ void prepare_load_balance(struct LocalScheduler * ls){
 }
 
 
-void balance_one_server(struct LocalScheduler * ls, uint to_server_id, BalancePtr r){
+void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct balance_data_t (*r)[MAX_GPU_PER_SERVER_SQUARE]){
     if (to_server_id == ls->server_id){
         return;
     }
@@ -140,7 +140,7 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, BalancePt
 
             for (uint j = 0; j < ls->gpu_n; j++){
                 // check each element of the big row
-                int mv_data = MIN(MIN(rm_data, ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sum), ls->server2server_data[to_server_id] - ls->row_sum[ls->to_server_id * ls->gpu_n + small_row]);
+                int mv_data = MIN(MIN(rm_data, ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sum), ls->server2server_data[to_server_id] - ls->row_sum[to_server_id * ls->gpu_n + small_row]);
                 // cout << "LB scheduler, mv data: " << mv_data <<", channel: "<< j << ", src gpu: " << *big_row << ", dst gpu: " << *small_row << endl;
 
                 if (mv_data == 0){
@@ -150,12 +150,12 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, BalancePt
                 // big row col j ====> small row col j via balance big row -> small row
                 ls->row_sum[to_server_id * ls->gpu_n + small_row] += mv_data;
                 ls->row_sum[to_server_id * ls->gpu_n + big_row] -= mv_data;
-                r[big_row * ls->gpu_n + small_row].sz[j] += mv_data;
+                (*r)[big_row * ls->gpu_n + small_row].sz[j] += mv_data;
 
                 // cout << "lb server" << server_id << ", dst server" << to_server_id << ", mv data: " << mv_data<<", big row: " << *big_row << ", small row: " << *small_row <<", lb dst gpu: " << j << endl;
                 ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sz[big_row] -= mv_data;
                 ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sum -= mv_data;
-                ls->data_after_balance[small_row][to_server_id * ls->gpu_n + j].offset[big_row] = data_after_balance[big_row][to_server_id * ls->gpu_n + j].offset[big_row];
+                ls->data_after_balance[small_row][to_server_id * ls->gpu_n + j].offset[big_row] = ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].offset[big_row];
                 ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].offset[big_row] += mv_data;
                 ls->data_after_balance[small_row][to_server_id * ls->gpu_n + j].sz[big_row] += mv_data;
                 ls->data_after_balance[small_row][to_server_id * ls->gpu_n + j].sum += mv_data;
@@ -171,8 +171,8 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, BalancePt
 }
 
 
-void restore_one_server(struct LocalScheduler * ls, uint to_server_id, ChannelPtr* channel, RestorePtr* r, DirectCpyPtr* dcpy, uint freq){
-    if (to_server_id == server_id){
+void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*channel)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], struct recv_data_t (*r)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], struct recv_data_t (*dcpy)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint freq){
+    if (to_server_id == ls->server_id){
         return;
     }
     // uint * row_transfer = new uint[gpu_n];
@@ -183,24 +183,24 @@ void restore_one_server(struct LocalScheduler * ls, uint to_server_id, ChannelPt
         row_transfer[i] = 0;
         for (uint j = 0; j < ls->gpu_n; j++){   // dst gpu
             for (uint from_gpu = 0; from_gpu < ls->gpu_n; from_gpu++){
-                if (ls->data_after_balance[i][ls->to_server_id * ls->gpu_n + j].sz[from_gpu] == 0){
+                if (ls->data_after_balance[i][to_server_id * ls->gpu_n + j].sz[from_gpu] == 0){
                     continue;
                 }
-                int transfer = MIN(freq - row_transfer[i], ls->data_after_balance[i][ls->to_server_id * ls->gpu_n + j].sz[from_gpu]);
+                int transfer = MIN(freq - row_transfer[i], ls->data_after_balance[i][to_server_id * ls->gpu_n + j].sz[from_gpu]);
                 row_transfer[i] += transfer;
-                channel[i][ j * ls->gpu_n + from_gpu] += transfer;
-                data_after_balance[i][ls->to_server_id * ls->gpu_n + j].sz[from_gpu] -= transfer;
-                ls->row_sum[ls->to_server_id * ls->gpu_n + i] -= transfer;
+                (*channel)[i][ j * ls->gpu_n + from_gpu] += transfer;
+                ls->data_after_balance[i][to_server_id * ls->gpu_n + j].sz[from_gpu] -= transfer;
+                ls->row_sum[to_server_id * ls->gpu_n + i] -= transfer;
                 if (i != j){    // Transfer is Server m's GPUi --> Server n's GPUi, need to dispatch data from m's GPUi --> n's GPUj if i not equal j
                     //     cout << "restore server" << server_id << ", dst server" << to_server_id << ", restore data: " << transfer<<", src gpu: " << i << ", dst gpu: " << j << endl;
                     // cout << "src : "<< i << ", dst: " << j << ", from gpu: " << from_gpu <<", size: " << transfer << endl;
-                    r[i][j * ls->gpu_n + from_gpu].sz += transfer;
-                    r[i][j * ls->gpu_n + from_gpu].offset = ls->data_after_balance[i][ls->to_server_id * ls->gpu_n + j].offset[from_gpu];
+                    (*r)[i][j * ls->gpu_n + from_gpu].sz += transfer;
+                    (*r)[i][j * ls->gpu_n + from_gpu].offset = ls->data_after_balance[i][to_server_id * ls->gpu_n + j].offset[from_gpu];
                 }else{
-                    dcpy[i][from_gpu].sz += transfer;
-                    dcpy[i][from_gpu].offset = ls->data_after_balance[i][ls->to_server_id * ls->gpu_n + j].offset[from_gpu];
+                    (*dcpy)[i][from_gpu].sz += transfer;
+                    (*dcpy)[i][from_gpu].offset = ls->data_after_balance[i][to_server_id * ls->gpu_n + j].offset[from_gpu];
                 }
-                ls->data_after_balance[i][ls->to_server_id * ls->gpu_n + j].offset[from_gpu] += transfer;
+                ls->data_after_balance[i][to_server_id * ls->gpu_n + j].offset[from_gpu] += transfer;
                 if (row_transfer[i] == freq){
                     break;
                 }
@@ -219,26 +219,24 @@ void restore_one_server(struct LocalScheduler * ls, uint to_server_id, ChannelPt
 
 
 void print_local_scheduler(struct LocalScheduler * ls, uint dst_server_id){
-    cout << "server "<< ls->server_id << " to server " << dst_server_id << endl;
+    // cout << "server "<< ls->server_id << " to server " << dst_server_id << endl;
     for (uint i = 0; i < ls->gpu_n; i++){
         for (uint j = 0; j < ls->gpu_n; j++){
-            cout << setw(10);
-            cout << ls->data[i][dst_server_id * ls->gpu_n + j];
+            LOG("%*u", 10,  ls->data[i][dst_server_id * ls->gpu_n + j]);
         }
-        cout << endl;
+        LOG("\n");
     }
 }
 
 void print_local_scheduler(struct LocalScheduler * ls){
     uint dim = ls->gpu_n * ls->server_n;
 
-    cout << "original matrix: " << endl;
+    // cout << "original matrix: " << endl;
     for (uint i = 0; i < ls->gpu_n; i++){
         for (uint j = 0; j < dim; j++){
-            cout << setw(10);
-            cout << ls->data[i][j];
+            LOG("%*u", 10,  ls->data[i][j]);
         }
-        cout << endl;
+        LOG("\n");
     }
 
     // cout << endl << "balanced matrix: " << endl;
@@ -274,13 +272,12 @@ void print_local_scheduler(struct LocalScheduler * ls){
 }
 
 void print_matrix(uint * data, uint m, uint n){ //width m, height n
-    cout << "--------------------------------------"<<endl;
+    LOG("--------------------------------------\n");
     for(uint i = 0; i < n; i ++){
         for (uint j = 0; j < m; j++){
-            cout << setw(10);
-            cout << data[i * m + j];
+            LOG("%*u", 10,  data[i * m + j]);
         }
-        cout << endl;
+        LOG("\n");
     }
-    cout << "--------------------------------------"<<endl;
+    LOG("--------------------------------------\n");
 }

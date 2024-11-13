@@ -5,12 +5,11 @@
 using namespace std;
 
 
-
 struct hungarian_info_t{
     int matching[MAX_SERVER_NUM_DOUBLE];
     bool visit[MAX_SERVER_NUM_DOUBLE];
     uint row_to_col[MAX_SERVER_NUM][MAX_SERVER_NUM]; // the col vertices that each row vertice connects to
-    uint row_to_col_n[MAX_SERVER_NUM]
+    uint row_to_col_n[MAX_SERVER_NUM];
 };
 
 void set_insert(uint val, uint * array, uint * sz);
@@ -46,7 +45,7 @@ struct FastAll2All{
     struct hungarian_info_t hungarian_info;  //metadata used by hungarian algorithm
     struct PermutationSet p_sets[MAX_SERVER_NUM_SQUARE]; // permutation sets, storing decomposition results
     uint p_sets_n;
-}
+};
 
 void init_fastall2all(struct FastAll2All * ata, Matrix * _mat);
 void free_fastall2all(struct FastAll2All * ata);

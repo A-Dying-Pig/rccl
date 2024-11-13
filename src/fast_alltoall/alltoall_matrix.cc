@@ -5,7 +5,7 @@
 #include <hip/hip_runtime.h>
 
 
-void init_matrix(struct Matrix *m, , uint _dim){
+void init_matrix(struct Matrix *m, uint _dim){
     m->data = NULL;
     m->dim = _dim;
     m->unit = 1;
@@ -14,9 +14,9 @@ void init_matrix(struct Matrix *m, , uint _dim){
     if (_dim > 0){
         hipMallocManaged((void**) &m->data, sizeof(uint*) * _dim);
         for (uint i = 0; i < _dim; i++){
-            hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+            hipMallocManaged((void**) &m->data[i], sizeof(uint) * _dim);
             for (uint j = 0; j < _dim; j++){
-                data[i][j] = 0;
+                m->data[i][j] = 0;
             }
         }
     }
@@ -159,8 +159,9 @@ void get_sdsm_info_matrix(struct Matrix *m){
     m->sdsm_info.non_max_row_n = 0;
     m->sdsm_info.non_max_col_n = 0;
 
-    uint max_row_idx[MAX_SERVER_NUM], max_row_idx_n = 0;
-    uint max_col_idx[MAX_SERVER_NUM], max_col_idx_n = 0;
+    struct row_col_info_t max_row_idx[MAX_SERVER_NUM];
+    struct row_col_info_t max_col_idx[MAX_SERVER_NUM];
+    uint max_col_idx_n = 0, max_row_idx_n = 0;
 
 
     uint max_sum = 0, same_sum_count = 0;
@@ -195,7 +196,6 @@ void get_sdsm_info_matrix(struct Matrix *m){
         for (uint j = 0; j < m->dim; j++){
             col_sum += m->data[j][i];
         }
-        struct row_col_info_t col_temp = {.idx = i, .sum = col_sum};
         if (col_sum > max_sum){
             max_sum = col_sum;
             for (uint z = 0; z < max_col_idx_n; z++){

@@ -7,7 +7,7 @@
 #else
 #define LOG(fmt, ...)                   \
   {                                           \
-    printf("LOG: " fmt "\n", ##__VA_ARGS__); \
+    printf("AllToAll LOG: " fmt "\n", ##__VA_ARGS__); \
     fflush(stdout);                       \
   }
 #endif
@@ -36,4 +36,6 @@ typedef uint * ChannelPtr;
 #define MAX_SERVER_NUM 8
 #define MAX_SERVER_NUM_DOUBLE 16
 #define MAX_SERVER_NUM_SQUARE 64
+#define MAX_TRANSFER_STEP_NUM 65 // MAX_SERVER_NUM_SQUARE + 1
 #define MAX_GPU_PER_SERVER 8
+#define MAX_GPU_PER_SERVER_SQUARE 64

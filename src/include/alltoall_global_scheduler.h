@@ -11,18 +11,18 @@ struct scheduling_step_t{
     uint to_server[MAX_GPU_PER_SERVER];
     uint from_server[MAX_GPU_PER_SERVER];
     // ChannelPtr: gpu_n * gpu_n (row -> remote dst_gpu's local id, col -> from gpu)
-    uint channel[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER];
+    uint channel[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
     //  RestorePtr: gpu_n * gpu_n (row -> dst_gpu's local id, col -> from gpu)
-    struct recv_data_t restore[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER];
+    struct recv_data_t restore[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
     // server id * channel id
-    struct recv_data_t direct_cpy[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER];
+    struct recv_data_t direct_cpy[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
 };
 
 struct scheduling_result_t{
-    BalancePtr balance[MAX_SERVER_NUM][MAX_SERVER_NUM];
-    struct scheduling_step_t steps[MAX_SERVER_NUM_SQUARE];
+    struct balance_data_t balance[MAX_SERVER_NUM][MAX_SERVER_NUM][MAX_GPU_PER_SERVER_SQUARE];
+    struct scheduling_step_t steps[MAX_TRANSFER_STEP_NUM];
     uint step_n;
-    TransferMatrixElement* intrinsic_ata[MAX_SERVER_NUM];
+    uint intrinsic_ata[MAX_SERVER_NUM][MAX_GPU_PER_SERVER_SQUARE];
 };
 
 
