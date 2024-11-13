@@ -5,12 +5,21 @@
 #include <hip/hip_runtime.h>
 
 
-void init_matrix(struct Matrix *m){
+void init_matrix(struct Matrix *m, , uint _dim){
     m->data = NULL;
-    m->dim = 0;
+    m->dim = _dim;
     m->unit = 1;
     m->sdsm_info.is_sdsm = false;
     m->sdsm_info.max_row_col_sum = 0;
+    if (_dim > 0){
+        hipMallocManaged((void**) &m->data, sizeof(uint*) * _dim);
+        for (uint i = 0; i < _dim; i++){
+            hipMallocManaged((void**) &data[i], sizeof(uint) * _dim);
+            for (uint j = 0; j < _dim; j++){
+                data[i][j] = 0;
+            }
+        }
+    }
 }
 
 
@@ -51,6 +60,36 @@ void copy_matrix(struct Matrix *m, uint * _data, uint source_dim){
     }
 }
 
+void copy_matrix(struct Matrix *dst, struct Matrix * src){
+    uint source_dim = src->dim;
+    dst->unit = src->unit;
+    dst->sdsm_info = src->sdsm_info;
+    if (source_dim == 0){
+        LOG("error when assigning an empty matrix");
+        return;
+    }
+    if (dst->dim > 0 && dst->data != NULL && dst->dim != source_dim){
+        // matrix dimension different - release memory first
+        for (uint i = 0; i < dst->dim; i++){
+            hipFree(dst->data[i]);
+        }
+        hipFree(dst->data);
+    }
+    if (dst->dim != source_dim){
+        hipMallocManaged((void**) &dst->data, sizeof(uint*) * source_dim);
+        // data = new uint*[source_dim];
+        for (uint i = 0; i < source_dim; i++){
+            hipMallocManaged((void**) &dst->data[i], sizeof(uint) * source_dim);
+            // data[i] = new uint[source_dim];
+        }
+    }
+    dst->dim = source_dim;
+    for (uint i = 0; i < dst->dim; i++){
+        for (uint j = 0; j < dst->dim; j++){
+            dst->data[i][j] = get_matrix(src, i, j);
+        }
+    }
+}
 
 bool equal_to_matrix(struct Matrix *a, struct Matrix *b){
     uint a_dim = a->dim, b_dim = b->dim;

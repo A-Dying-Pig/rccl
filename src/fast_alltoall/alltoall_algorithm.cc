@@ -2,71 +2,91 @@
 #include "alltoall_matrix.h"
 #include "alltoall_define.h"
 #include <iomanip>
-#include <pthread.h>
-using namespace std;
 
 
-FastAll2All::FastAll2All(Matrix * _mat, uint _gpu_n){
-    mat.copy(_mat);
-    uint dim = mat.get_dim();
-    hungarian_info.matching.insert(hungarian_info.matching.end(), dim*2, -1);
-    hungarian_info.visit.insert(hungarian_info.visit.end(), dim*2, false);
-    unordered_set<uint> empty_vector;
-    hungarian_info.row_to_col.insert(hungarian_info.row_to_col.end(), dim, empty_vector);
-    gpu_n = _gpu_n;
+
+
+
+void init_fastall2all(struct FastAll2All * ata, Matrix * _mat){
+    init_matrix(&(ata->mat));
+    init_matrix(&(ata->SDS_mat));
+    copy_matrix(&(ata->mat), _mat);
+    uint dim = ata->mat.dim;
+    for (uint i = 0; i < dim * 2, i ++){
+        ata->hungarian_info.matching[i] = -1;
+        ata->hungarian_info.visit[i] = false;
+    }
+    for (uint i = 0; i < dim; i++){
+        ata->hungarian_info.row_to_col_n[i] = 0;
+    }
+    ata->p_sets_n = 0;
+
 }
 
-void FastAll2All::to_scaled_doubly_stochastic_matrix(){
-    mat.get_sdsm_info();
-    SDS_mat.copy(&mat);
+void free_fastall2all(struct FastAll2All * ata){
+    free_matrix(&(ata->mat));
+    free_matrix(&(ata->SDS_mat));
+}
 
-    if(!SDS_mat.sdsm_info.is_sdsm){
-        uint dim = SDS_mat.get_dim();
-        uint max_sum = SDS_mat.sdsm_info.max_row_col_sum;
+
+void to_scaled_doubly_stochastic_matrix_fastall2all(struct FastAll2All * ata){
+    get_sdsm_info_matrix(&(ata->mat));
+    copy_matrix(&(ata->SDS_mat), &(ata->mat));
+
+    if(!ata->SDS_mat.sdsm_info.is_sdsm){
+        uint dim = ata->SDS_mat.dim;
+        uint max_sum = ata->SDS_mat.sdsm_info.max_row_col_sum;
         // original matrix is not SDSM, do the conversion
-        for (vector<struct row_col_info_t>::iterator row = SDS_mat.sdsm_info.non_max_row.begin(); row != SDS_mat.sdsm_info.non_max_row.end(); row++){
-            for (vector<struct row_col_info_t>::iterator col = SDS_mat.sdsm_info.non_max_col.begin(); col != SDS_mat.sdsm_info.non_max_col.end(); col++){
-                if (col -> sum == max_sum)
+        for (uint row_id = 0; row_id < ata->SDS_mat.sdsm_info.non_max_row_n; row_id++){
+            struct row_col_info_t * row = &(ata->SDS_mat.sdsm_info.non_max_row[row_id]);
+            for (uint col_id = 0; col_id < ata->SDS_mat.sdsm_info.non_max_col_n; col_id++){
+                struct row_col_info_t * col =  (ata->SDS_mat.sdsm_info.non_max_col[col_id]);
+                if (col -> sum == max_sum){
                     continue;
-                uint diff =  max_sum - MAX(row -> sum, col -> sum);
-                SDS_mat.add(diff, row -> idx, col -> idx);
+                }
+                uint diff = max_sum - MAX(row -> sum, col -> sum);
+                add_matrix(&ata -> SDS_mat, diff, row -> idx, col -> idx);
                 row -> sum += diff;
                 col -> sum += diff;
-                if (row -> sum == max_sum) {
+                if (row -> sum == max_sum){
                     break;
-                }          
+                }
             }
         }
-        SDS_mat.sdsm_info.is_sdsm = true;
-        SDS_mat.sdsm_info.non_max_row.clear();
-        SDS_mat.sdsm_info.non_max_col.clear();
-        // SDS_mat.get_sdsm_info();
+        ata->SDS_mat.sdsm_info.is_sdsm = true;
+        ata->SDS_mat.sdsm_info.non_max_row_n = 0;
+        ata->SDS_mat.sdsm_info.non_max_col_n = 0;
     }
 }
 
-void FastAll2All::decompose(){
-    if (!SDS_mat.valid_sdsm()){
+
+void decompose_fastall2all(struct FastAll2All * ata){
+    if (!valid_sdsm_matrix(&ata->SDS_mat)){
         LOG("error when doing decomposition, must convert matrix to sdsm first!");
         return;
     }
-    p_sets.clear(); // store results
-    uint freq_sum = 0, max_sum = SDS_mat.sdsm_info.max_row_col_sum;
+    ata->p_sets_n = 0;
+    uint freq_sum = 0, max_sum = ata->SDS_mat.sdsm_info.max_row_col_sum;
     while(freq_sum < max_sum){
-        update_edges();
-        hungarian();
-        freq_sum += update_permutation_sets();
+        update_edges_fastall2all(ata);
+        hungarian_fastall2all(ata);
+        freq_sum += update_permutation_sets_fastall2all(ata);
     }
 }
 
 
-uint FastAll2All::hungarian(){
+uint hungarian_fastall2all(struct FastAll2All * ata){
     uint match_num = 0;
-    uint dim = SDS_mat.get_dim();
-    std::fill(hungarian_info.matching.begin(), hungarian_info.matching.end(), -1);
+    uint dim = ata->SDS_mat.dim;
+    for (uint i = 0; i < dim * 2; i++){
+        ata->hungarian_info.matching[i] = -1;
+    }
     for (uint u = 0; u < dim; u++){
-        if (hungarian_info.matching[u] == -1){
-            std::fill(hungarian_info.visit.begin(), hungarian_info.visit.end(), false);
-            if(hungarian_dfs(u))
+        if (ata->hungarian_info.matching[u] == -1){
+            for (uint i = 0; i < dim * 2; i++){
+                ata->hungarian_info.visit[i] = false;
+            }
+            if(hungarian_dfs(ata, u))
                 match_num ++;
         }
     }
@@ -74,13 +94,14 @@ uint FastAll2All::hungarian(){
 }
 
 
-bool FastAll2All::hungarian_dfs(uint u){
-    for (unordered_set<uint>::iterator col_idx = hungarian_info.row_to_col[u].begin(); col_idx != hungarian_info.row_to_col[u].end(); col_idx ++){
-        if (!hungarian_info.visit[*col_idx]){
-            hungarian_info.visit[*col_idx] = true;
-            if (hungarian_info.matching[*col_idx] == -1 || hungarian_dfs(hungarian_info.matching[*col_idx])){
-                hungarian_info.matching[*col_idx] = u;
-                hungarian_info.matching[u] = *col_idx;
+bool hungarian_dfs_fastall2all(struct FastAll2All * ata, uint u){
+    for (uint i = 0; i < ata->hungarian_info.row_to_col_n[u]; i++){
+        uint col =  ata->hungarian_info.row_to_col[i];
+        if (!ata->hungarian_info.visit[col]){
+            ata->hungarian_info.visit[col] = true;
+            if (ata->hungarian_info.matching[col] == -1 || hungarian_dfs_fastall2all(ata, ata->hungarian_info.matching[col])){
+                ata->hungarian_info.matching[col] = u;
+                ata->hungarian_info.matching[u] = col;
                 return true;
             }
         }
@@ -88,105 +109,166 @@ bool FastAll2All::hungarian_dfs(uint u){
     return false;
 }
 
-void FastAll2All::update_edges(){
-    uint dim = SDS_mat.get_dim();
+
+void set_insert(uint val, uint * array, uint * sz){
+    for (uint i = 0; i < (*sz); i ++){
+        if (array[i] == val){
+            return;
+        }
+    }
+    array[(*sz)] = val;
+    (*sz) ++;
+}
+
+void set_remove(uint val, uint * array, uint * sz){
+    uint i = 0;
+    for (i = 0; i < (*sz); i++){
+        if(array[i] == val){
+            break;
+        }
+    }
+    for (uint j = i; j < (*sz) - 1; j++){
+        array[j] = array[j+1];
+    }
+    if (i < (*sz)){
+        (*sz) --;
+    }
+}
+
+
+void update_edges_fastall2all(struct FastAll2All * ata){
+    uint dim = ata->SDS_mat.dim;
     // row vertices id: 0 - dim-1, col vertices id: dim - 2*dim-1
     for (uint i = 0; i < dim; i++){
         for (uint j = 0; j < dim; j++){
             uint col_id = j + dim;
-            if (SDS_mat.get(i, j) > 0 ){
-                hungarian_info.row_to_col[i].insert(col_id);
-            }else if (SDS_mat.get(i, j) == 0){
-                hungarian_info.row_to_col[i].erase(col_id);
+            uint elem = get_matrix(&ata ->SDS_mat, i, j);
+            if(elem > 0){
+                // insert edge into the set
+                set_insert(col_id, ata->hungarian_info.row_to_col[i], &ata->hungarian_info.row_to_col_n[i]);
+            }else if (elem == 0){
+                // remove edge from set
+                set_remove(col_id, ata->hungarian_info.row_to_col[i], &ata->hungarian_info.row_to_col_n[i]);
             }
         }
     }
 }
 
-uint FastAll2All::update_permutation_sets(){
-    uint dim = SDS_mat.get_dim();
+uint update_permutation_sets_fastall2all(struct FastAll2All * ata){
+    uint dim = ata->SDS_mat.dim;
     // row vertices id: 0 - dim-1, col vertices id: 0 - dim-1
-    PermutationSet r(1, 1, dim);
-    uint min_freq = SDS_mat.get(0, hungarian_info.matching[0] - dim);
+
+    struct PermutationSet * cur_pset = &ata->p_sets[ata->p_sets_n];
+    init_permutation_set(cur_pset, 1, 1, dim);
+    uint min_freq = get_matrix(&ata->SDS_mat, 0, ata->hungarian_info.matching[0] - dim);
     for(uint i = 0; i < dim; i++){
-        uint col_id = hungarian_info.matching[i] - dim;
-        min_freq = MIN(SDS_mat.get(i, col_id), min_freq);
-        r.mp.insert(make_pair(i, col_id));
+        uint col_id = ata->hungarian_info.matching[i] - dim;
+        min_freq = MIN(get_matrix(&ata->SDS_mat, i, col_id), min_freq);
+        map_insert(cur_pset -> mp, & cur_pset -> mp_n, i, col_id);
     }
 
     for(uint i = 0; i < dim; i++){
-        uint col_id = hungarian_info.matching[i] - dim;
-        SDS_mat.subtract(min_freq, i, col_id);
+        uint col_id = ata->hungarian_info.matching[i] - dim;
+        subtract_matrix(&ata->SDS_mat, min_freq, i, col_id);
     }
 
-    r.set_freq(min_freq);
-    p_sets.push_back(r);
+    set_freq_permutation_set(cur_pset, min_freq);
+    ata->p_sets_n ++;
     return min_freq;
 }
 
-void FastAll2All::print_decomposition(){
-    for (vector<PermutationSet>::iterator ps = p_sets.begin(); ps != p_sets.end(); ps++){
-        ps -> print_permutation_matrix();
+void print_decomposition_fastall2all(struct FastAll2All * ata){
+    for (uint z = 0; z < ata->p_sets_n; z++){
+        print_permutation_set(&ata->p_sets[z]);
     }
 }
 
-bool FastAll2All::verify_decomposition(){
-    uint dim = SDS_mat.get_dim();
-    Matrix r(dim);
-    for (vector<PermutationSet>::iterator ps = p_sets.begin(); ps != p_sets.end(); ps++){
-        for (uint i = 0; i < dim; i++){
-            uint non_empty_col_id = ps -> mp[i];
-            r.add(ps->get_freq(), i, non_empty_col_id);
-        }
-    }
-    r.get_sdsm_info();
-    to_scaled_doubly_stochastic_matrix();
-    return SDS_mat.equal_to(&r);
-}
-
-void PermutationSet::print_permutation_matrix(){
-    cout << "Permutation Matrix, dim: " << dim << endl;
-    for(uint i = 0; i < dim; i ++){
-        uint non_empty_col_id = mp[i];
-        for (uint j = 0; j < dim; j++){
-            cout << setw(10);
-            if (non_empty_col_id == j){
-                cout << frequency * scaling_factor;
+bool verify_decomposition_fastall2all(struct FastAll2All * ata){
+    uint dim = ata->SDS_mat.dim;
+    struct Matrix r;
+    init_matrix(&r, dim);
+    for (uint z = 0; z < ata->p_sets_n; z ++){
+        for (uint i = 0; i < dim, i++){
+            uint non_empty_col_id;
+            if (map_lookup(&ata->p_sets[z].mp, ata->p_sets[z].mp_n, i, &non_empty_col_id)){
+                add_matrix(&r, ata->p_sets[z].frequency, i, non_empty_col_id);
             }else{
-                cout << "0";
+                LOG("map error lookup");
+                exit(1);
             }
         }
-        cout << endl;
+    }
+    get_sdsm_info_matrix(&r);
+    to_scaled_doubly_stochastic_matrix_fastall2all(&r);
+    return equal_to_matrix(&ata->SDS_mat, &r);
+}
+
+void print_permutation_set(struct PermutationSet * ps){
+    cout << "Permutation Set, dim: " << ps->dim << endl;
+    for(uint i = 0; i < ps->dim; i ++){
+        uint non_empty_col_id;
+        if (map_lookup(&ps->mp, ps->mp_n, i, &non_empty_col_id)){
+            for (uint j = 0; j < ps->dim; j++){
+                cout << setw(10);
+                if (non_empty_col_id == j){
+                    cout << ps->frequency * ps->scaling_factor;
+                }else{
+                    cout << "0";
+                }
+            }
+            cout << endl;
+        }else{
+            LOG("map error lookup");
+            exit(1);
+        }
+
      }
 }
 
-
-vector<uint> PermutationSet::to_server(uint server_n){
-    vector<uint> r;
+void to_server_permutation_set(struct PermutationSet * ps, uint server_n, uint * r){
     for (uint i = 0; i < server_n; i++){
-        auto lookup = mp.find(i);
-        if (lookup == mp.end()){
-            LOG("error decomposition result");
+        uint non_empty_col_id;
+        if (map_lookup(&ps->mp, ps->mp_n, i, &non_empty_col_id)){
+            r[i] = non_empty_col_id;
+        }else{
+            LOG("map error lookup");
             exit(1);
         }
-        r.push_back(lookup->second);
     }
-    return r;
 }
-vector<uint> PermutationSet::from_server(uint server_n){
-    vector<uint> r;
+
+void from_server_permutation_set(struct PermutationSet * ps, uint server_n, uint * r){
     for (uint i = 0; i < server_n; i++){
-        r.push_back(0);
-    }
-    for (uint i = 0; i < server_n; i++){
-        auto lookup = mp.find(i);
-        if (lookup == mp.end()){
-            LOG("error decomposition result");
+        uint non_empty_col_id;
+        if (map_lookup(&ps->mp, ps->mp_n, i, &non_empty_col_id)){
+            r[non_empty_col_id] = i;
+        }else{
+            LOG("map error lookup");
             exit(1);
         }
-        r[lookup->second] = i; 
     }
-    return r;
+}
+
+void init_permutation_set(struct PermutationSet * ps, uint _freq = 1, uint _sf = 1, uint _dim = 0) {
+    ps->frequency = _freq;
+    ps->scaling_factor = _sf;
+    ps->dim = _dim;
+    ps->mp_n = 0;
 }
 
 
+void map_insert(struct map_data_t * array, uint * sz, uint key, uint val){
+    array[(*sz)].key = key;
+    array[(*sz)].val = val;
+    (*sz) ++;
+}
+
+uint map_lookup(struct map_data_t * array, uint sz, uint key, uint * val){
+    for (uint i = 0; i < sz; i++){
+        if (array[i].key == key){
+            (*val) = array[i].val;
+            return true;
+        }
+    }
+    return false;
+}
