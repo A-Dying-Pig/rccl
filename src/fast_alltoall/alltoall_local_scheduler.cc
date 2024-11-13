@@ -1,4 +1,4 @@
-#include "alltoall_local_scheduler.h"
+#include "fast_alltoall/alltoall_local_scheduler.h"
 #include <iomanip>
 #include <stdio.h>
 #include <hip/hip_runtime.h>

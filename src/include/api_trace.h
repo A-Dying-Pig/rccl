@@ -26,7 +26,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "alltoall_global_scheduler.h"
+#include "fast_alltoall/alltoall_global_scheduler.h"
 
 // should only be increased if fundamental changes to dispatch table(s)
 #define RCCL_API_TRACE_VERSION_MAJOR 0

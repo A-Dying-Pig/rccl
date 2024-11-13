@@ -543,11 +543,11 @@ set(SRC_FILES
   src/fast_alltoall/alltoall_local_scheduler.cc
   src/fast_alltoall/alltoall_matrix.cc
   src/fast_alltoall/collective_alltoall.cc
-  src/include/alltoall_algorithm.h
-  src/include/alltoall_define.h
-  src/include/alltoall_global_scheduler.h
-  src/include/alltoall_local_scheduler.h
-  src/include/alltoall_matrix.h
+  src/include/fast_alltoall/alltoall_algorithm.h
+  src/include/fast_alltoall/alltoall_define.h
+  src/include/fast_alltoall/alltoall_global_scheduler.h
+  src/include/fast_alltoall/alltoall_local_scheduler.h
+  src/include/fast_alltoall/alltoall_matrix.h
 )
 
 if (ENABLE_MSCCL_KERNEL)

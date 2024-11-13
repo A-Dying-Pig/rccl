@@ -4,7 +4,7 @@
 #include "graph/topo.h"
 #include "nccl.h"
 #include "api_trace.h"
-#include "alltoall_global_scheduler.h"
+#include "fast_alltoall/alltoall_global_scheduler.h"
 #include <hip/hip_runtime.h>
 
 

@@ -1,5 +1,5 @@
-#include "alltoall_global_scheduler.h"
-#include "alltoall_define.h"
+#include "fast_alltoall/alltoall_global_scheduler.h"
+#include "fast_alltoall/alltoall_define.h"
 #include <chrono>
 #include <iostream>
 #include <hip/hip_runtime.h>

@@ -1,6 +1,6 @@
-#include "alltoall_algorithm.h"
-#include "alltoall_matrix.h"
-#include "alltoall_define.h"
+#include "fast_alltoall/alltoall_algorithm.h"
+#include "fast_alltoall/alltoall_matrix.h"
+#include "fast_alltoall/alltoall_define.h"
 #include <iomanip>
 
 

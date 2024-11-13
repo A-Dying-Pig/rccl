@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <iomanip>
-#include "alltoall_matrix.h"
+#include "fast_alltoall/alltoall_matrix.h"
 #include <hip/hip_runtime.h>
 
 
