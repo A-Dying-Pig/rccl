@@ -11,6 +11,7 @@
 
 #include <hip/hip_runtime.h>
 #include <hip/hip_fp16.h>
+#include <alltoall_global_scheduler.h>
 
 #define NCCL_MAJOR ${NCCL_MAJOR}
 #define NCCL_MINOR ${NCCL_MINOR}
@@ -707,6 +708,21 @@ ncclResult_t pncclAllToAllv(const void *sendbuff, const size_t sendcounts[],
     const size_t sdispls[], void *recvbuff, const size_t recvcounts[],
     const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 /*! @endcond */
+
+
+ncclResult_t ncclAllToAllv2(
+    uint rankid,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
+    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+ncclResult_t pncclAllToAllv2(
+    uint rankid,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
+    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+
 
 /*! @} */
 

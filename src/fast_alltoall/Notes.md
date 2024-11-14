@@ -45,7 +45,7 @@ rcclApiFuncTable{sizeof(rcclApiFuncTable),
                 &<api_name>_impl};
 ```
 * Declare new api
-```cpp 
+```cpp
 NCCL_API(ncclResult_t, <api_name>, <api_parameters>);
 //for example
 NCCL_API(ncclResult_t, ncclAllToAllv2, const void* sendbuff, const size_t sendcounts[],
@@ -53,7 +53,7 @@ NCCL_API(ncclResult_t, ncclAllToAllv2, const void* sendbuff, const size_t sendco
          const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm,
          hipStream_t stream);
 ```
-and 
+and
 ```cpp
 ncclResult_t <api_name>(<api_parameters>){
     return ::rccl::RcclGetFunctionTable()-><api_name>_fn (<api_parameters>);
@@ -85,8 +85,18 @@ ncclAllToAllv2_impl(const void* sendbuff, const size_t sendcounts[],
                    const size_t sdispls[], void* recvbuff, const size_t recvcounts[],
                    const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm,
                    hipStream_t stream){
-// ...                    
+// ...
 }
+```
+
+* Declare new api in `nccl.h.in`:
+```cpp
+ncclResult_t <api_name> (<api_parameters>);
+// for example
+ncclResult_t ncclAllToAllv2(
+    const void* sendbuff, const size_t sendcounts[], const size_t sdispls[],
+    void* recvbuff, const size_t recvcounts[], const size_t rdispls[],
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 ```
 
 The api function is executed separately in parallel at each GPU.
