@@ -1,5 +1,6 @@
 #include "fast_alltoall/alltoall_local_scheduler.h"
 #include <iomanip>
+#include <iostream>
 #include <stdio.h>
 #include <hip/hip_runtime.h>
 
@@ -272,12 +273,13 @@ void print_local_scheduler(struct LocalScheduler * ls){
 }
 
 void print_matrix(uint * data, uint m, uint n){ //width m, height n
-    LOG("--------------------------------------\n");
+    std::cout<<"--------------------------------------" << std::endl;
     for(uint i = 0; i < n; i ++){
         for (uint j = 0; j < m; j++){
-            LOG("%*u", 10,  data[i * m + j]);
+            std::cout << std::setw(10);
+            std::cout << data[i * m + j] << " ";
         }
-        LOG("\n");
+        std::cout<<std::endl;
     }
-    LOG("--------------------------------------\n");
+    std::cout << "--------------------------------------" << std::endl;
 }

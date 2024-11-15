@@ -11,7 +11,7 @@
 
 #include <hip/hip_runtime.h>
 #include <hip/hip_fp16.h>
-#include <alltoall_global_scheduler.h>
+#include <fast_alltoall/alltoall_global_scheduler.h>
 
 #define NCCL_MAJOR ${NCCL_MAJOR}
 #define NCCL_MINOR ${NCCL_MINOR}
