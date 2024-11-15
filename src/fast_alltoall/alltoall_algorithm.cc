@@ -118,6 +118,7 @@ void set_insert(uint val, uint * array, uint * sz){
 }
 
 void set_remove(uint val, uint * array, uint * sz){
+    if (*sz == 0) return;
     uint i = 0;
     for (i = 0; i < (*sz); i++){
         if(array[i] == val){
