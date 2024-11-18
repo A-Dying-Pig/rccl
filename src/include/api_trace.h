@@ -74,11 +74,18 @@ typedef ncclResult_t (*ncclAllToAllv_fn_t)(
 New AllToAll API
 */
 typedef ncclResult_t (*ncclAllToAllv2_fn_t)(
-    uint rankid,
     void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
-    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    void* tempbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+
+
+typedef ncclResult_t (*ncclAllToAllv0_fn_t)(
+    uint rankid, uint gpu_n,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+
 
 typedef ncclResult_t (*ncclBroadcast_fn_t)(const void* sendbuff, void* recvbuff,
                                            size_t count, ncclDataType_t datatype,
@@ -207,6 +214,7 @@ typedef struct rcclApiFuncTable
     ncclCommRegister_fn_t         ncclCommRegister_fn;
     ncclCommDeregister_fn_t       ncclCommDeregister_fn;
     ncclAllToAllv2_fn_t           ncclAllToAllv2_fn;
+    ncclAllToAllv0_fn_t           ncclAllToAllv0_fn;
 
 } rcclApiFuncTable;
 

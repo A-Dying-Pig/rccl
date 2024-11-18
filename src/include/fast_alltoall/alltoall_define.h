@@ -29,7 +29,7 @@ typedef struct recv_data_t * RestorePtr;
 typedef struct recv_data_t * DirectCpyPtr;
 typedef uint * ChannelPtr;
 
-#define MAX_BUFFER_SIZE_PER_RANK 2500000
+#define MAX_BUFFER_SIZE_PER_RANK 250000000
 #define MAX_ELEMENT_NUM 3
 
 #define GPU_NUM_PER_SERVER 8

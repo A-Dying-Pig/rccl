@@ -19,6 +19,9 @@ struct scheduling_step_t{
 };
 
 struct scheduling_result_t{
+    uint gpu_n;
+    uint server_n;
+    uint rankid;
     struct balance_data_t balance[MAX_SERVER_NUM][MAX_SERVER_NUM][MAX_GPU_PER_SERVER_SQUARE];
     struct scheduling_step_t steps[MAX_TRANSFER_STEP_NUM];
     uint step_n;

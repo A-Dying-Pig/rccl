@@ -711,18 +711,27 @@ ncclResult_t pncclAllToAllv(const void *sendbuff, const size_t sendcounts[],
 
 
 ncclResult_t ncclAllToAllv2(
-    uint rankid,
     void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
-    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    void* tempbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 ncclResult_t pncclAllToAllv2(
-    uint rankid,
     void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
-    void* tempbuff, void* syncbuff, struct scheduling_result_t * sched,
+    void* tempbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
+
+ncclResult_t ncclAllToAllv0(
+    uint rankid, uint gpu_n,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
+ncclResult_t pncclAllToAllv0(
+    uint rankid, uint gpu_n,
+    void* sendbuff, size_t sendcounts[], size_t sendpos[],
+    void* recvbuff, const size_t recvcounts[], size_t recvpos[],
+    ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
 /*! @} */
 
