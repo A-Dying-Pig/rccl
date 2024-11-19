@@ -241,7 +241,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
     printf("Rank %u: step 0 - issue succeeded\n", rankid);
     }
 
-    // middle steps
+    // // middle steps
     uint prev_dst_server = dst_server,
         prev_src_server = src_server;
     struct scheduling_step_t prev_step = cur_step;
@@ -480,7 +480,6 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             recvpos[src_gpu_global_id] += dcopy_sched[from_gpu].sz;
         }
     }
-
 
     ret = ncclGroupEnd();
     if (ret == ncclInProgress) {
