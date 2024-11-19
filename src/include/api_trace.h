@@ -81,7 +81,7 @@ typedef ncclResult_t (*ncclAllToAllv2_fn_t)(
 
 
 typedef ncclResult_t (*ncclAllToAllv0_fn_t)(
-    uint rankid, uint gpu_n,
+    uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK,
     void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);

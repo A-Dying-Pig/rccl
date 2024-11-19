@@ -28,6 +28,8 @@ void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gp
 
     hipMallocManaged((void**) &gs->sched, sizeof(scheduling_result_t));
     hipMemset(gs->sched, 0, sizeof(scheduling_result_t));
+    gs->sched->gpu_n = _gpu_n;
+    gs->sched->server_n = _server_n;
 }
 
 void free_global_scheduler(struct GlobalScheduler * gs){

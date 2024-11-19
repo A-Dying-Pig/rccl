@@ -8,14 +8,14 @@
 #include <hip/hip_runtime.h>
 
 // BASELINE
-NCCL_API(ncclResult_t, ncclAllToAllv0, uint rankid, uint gpu_n, void* sendbuff, size_t sendcounts[], size_t sendpos[],
+NCCL_API(ncclResult_t, ncclAllToAllv0, uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK, void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
 
 
 ncclResult_t
-ncclAllToAllv0_impl(uint rankid, uint gpu_n, void* sendbuff, size_t sendcounts[], size_t sendpos[],
+ncclAllToAllv0_impl(uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK, void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream){
 
@@ -23,9 +23,9 @@ ncclAllToAllv0_impl(uint rankid, uint gpu_n, void* sendbuff, size_t sendcounts[]
     NCCLCHECK(ncclCommCount(comm, &rank_n));
     ncclResult_t ret, state;
 
-    uint local_rank_id = rankid % gpu_n,
+    uint local_rank_id = rankid % gpu_n;
     NCCLCHECK(ncclGroupStart());
-    for (int r=0; r<nRanks; r++) {
+    for (int r = 0; r < rank_n; r++) {
         NCCLCHECK(ncclSend(
             ((char*)sendbuff) + (r * gpu_n + local_rank_id) * MAX_BUFFER_SIZE_PER_RANK *ncclTypeSize(datatype),
             sendcounts[r * gpu_n + local_rank_id],
@@ -76,7 +76,9 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         local_rank_id = sched->rankid % sched->gpu_n,
         server_id = sched->rankid / sched->gpu_n,
         server_n = sched->server_n,
-        gpu_n = sched->gpu_n;
+        gpu_n = sched->gpu_n,
+        rankid = sched->rankid,
+        MAX_BUFFER_SIZE_PER_RANK = sched->MAX_BUFFER_SIZE_PER_RANK;
     ncclResult_t ret, state;
     printf("rankid: %u, gpu_n: %u, server_id: %u, server_n: %u\n", rankid, gpu_n, server_id, server_n);
 
@@ -239,7 +241,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
     printf("Rank %u: step 0 - issue succeeded\n", rankid);
     }
 
-    // // middle steps
+    // middle steps
     uint prev_dst_server = dst_server,
         prev_src_server = src_server;
     struct scheduling_step_t prev_step = cur_step;
@@ -307,7 +309,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
                 uint send_data_sz = restore_send_sched[local_gpu * gpu_n + from_gpu].sz;
                 if (send_data_sz > 0){
                     dst_gpu_global_id = server_id * gpu_n + local_gpu;
-                    uint src_gpu_tempbuff_id = local_rank_id * gpu_n + from_gpu;
+                    uint src_gpu_tempbuff_id = local_gpu * gpu_n + from_gpu;
                     void * src_ptr = (char *) tempbuff + prev_tempbuff_offset + src_gpu_tempbuff_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK;
                     NCCLCHECK(ncclSend(
                         src_ptr,
@@ -347,7 +349,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
                 void * dst_ptr = (char *) recvbuff + src_gpu_global_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK + dcopy_sched[from_gpu].offset * ncclTypeSize(datatype);
                 NCCLCHECK(ncclSend(
                     src_ptr,
-                    ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz,
+                    dcopy_sched[from_gpu].sz,
                     datatype,
                     rankid,
                     comm,
@@ -355,7 +357,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
                 ));
                 NCCLCHECK(ncclRecv(
                     dst_ptr,
-                    ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz,
+                    dcopy_sched[from_gpu].sz,
                     datatype,
                     rankid,
                     comm,
@@ -421,7 +423,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             uint send_data_sz = restore_send_sched[local_gpu * gpu_n + from_gpu].sz;
             if (send_data_sz > 0){
                 dst_gpu_global_id = server_id * gpu_n + local_gpu;
-                uint src_gpu_tempbuff_id = local_rank_id * gpu_n + from_gpu;
+                uint src_gpu_tempbuff_id = local_gpu * gpu_n + from_gpu;
                 void * src_ptr = (char *) tempbuff + prev_tempbuff_offset + src_gpu_tempbuff_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK;
                 NCCLCHECK(ncclSend(
                     src_ptr,
@@ -454,14 +456,14 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
     // direct cpy
     for (uint from_gpu = 0; from_gpu < gpu_n; from_gpu ++){
         if (dcopy_sched[from_gpu].sz > 0){
-            src_gpu_global_id = prev_src_server  * gpu_n + from_gpu;
+            src_gpu_global_id = prev_src_server * gpu_n + from_gpu;
             uint src_gpu_tempbuff_id = local_rank_id * gpu_n + from_gpu;
             void * src_ptr = (char *) tempbuff + prev_tempbuff_offset + src_gpu_tempbuff_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK;
             void * dst_ptr = (char *) recvbuff + src_gpu_global_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK + dcopy_sched[from_gpu].offset * ncclTypeSize(datatype);
             // hipMemcpy(dst_ptr, src_ptr, ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz, hipMemcpyDeviceToDevice);
             NCCLCHECK(ncclSend(
                     src_ptr,
-                    ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz,
+                    dcopy_sched[from_gpu].sz,
                     datatype,
                     rankid,
                     comm,
@@ -469,7 +471,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
                 ));
                 NCCLCHECK(ncclRecv(
                     dst_ptr,
-                    ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz,
+                    dcopy_sched[from_gpu].sz,
                     datatype,
                     rankid,
                     comm,

@@ -46,7 +46,7 @@ ncclAllToAllv2_impl(
 
 ncclResult_t
 ncclAllToAllv0_impl(
-    uint rankid, uint gpu_n,
+    uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK,
     void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
@@ -333,7 +333,7 @@ NCCL_API(ncclResult_t, ncclAllToAllv2, void* sendbuff, size_t sendcounts[], size
     void* tempbuff, struct scheduling_result_t * sched,
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
-NCCL_API(ncclResult_t, ncclAllToAllv0, uint rankid, uint gpu_n, void* sendbuff, size_t sendcounts[], size_t sendpos[],
+NCCL_API(ncclResult_t, ncclAllToAllv0, uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK, void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream);
 
@@ -469,11 +469,11 @@ ncclAllToAllv2(void* sendbuff, size_t sendcounts[], size_t sendpos[],
 }
 
 ncclResult_t
-ncclAllToAllv0(uint rankid, uint gpu_n, void* sendbuff, size_t sendcounts[], size_t sendpos[],
+ncclAllToAllv0(uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK, void* sendbuff, size_t sendcounts[], size_t sendpos[],
     void* recvbuff, const size_t recvcounts[], size_t recvpos[],
     ncclDataType_t datatype, ncclComm_t comm, hipStream_t stream)
 {
-    return ::rccl::RcclGetFunctionTable()->ncclAllToAllv0_fn(rankid, gpu_n, sendbuff, sendcounts, sendpos,
+    return ::rccl::RcclGetFunctionTable()->ncclAllToAllv0_fn(rankid, gpu_n, MAX_BUFFER_SIZE_PER_RANK, sendbuff, sendcounts, sendpos,
                                                             recvbuff, recvcounts, recvpos,
                                                             datatype, comm, stream);
 }
