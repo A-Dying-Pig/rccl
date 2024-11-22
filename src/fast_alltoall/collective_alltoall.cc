@@ -47,10 +47,11 @@ ncclAllToAllv0_impl(uint rankid, uint gpu_n, uint MAX_BUFFER_SIZE_PER_RANK, void
         do {
         ncclCommGetAsyncError(comm, &state);
         } while (state == ncclInProgress);
-    } else if (ret == ncclSuccess) {
-    /* Successfully issued */
-    printf("Rankid: %u, AlltoAll Baseline succeeded\n", rankid);
     }
+    // else if (ret == ncclSuccess) {
+    // /* Successfully issued */
+    // printf("Rankid: %u, AlltoAll Baseline succeeded\n", rankid);
+    // }
     return ncclSuccess;
 }
 
@@ -80,7 +81,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         rankid = sched->rankid,
         MAX_BUFFER_SIZE_PER_RANK = sched->MAX_BUFFER_SIZE_PER_RANK;
     ncclResult_t ret, state;
-    printf("rankid: %u, gpu_n: %u, server_id: %u, server_n: %u\n", rankid, gpu_n, server_id, server_n);
+    // printf("rankid: %u, gpu_n: %u, server_id: %u, server_n: %u\n", rankid, gpu_n, server_id, server_n);
 
     /* ------------------------------------------------------
         Preparation Stage: Instrinsic AllToAll and Balance
@@ -124,10 +125,11 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         do {
         ncclCommGetAsyncError(comm, &state);
         } while (state == ncclInProgress);
-    } else if (ret == ncclSuccess) {
-    /* Successfully issued */
-    printf("Rankid: %u, intrinsic AlltoAll succeeded\n", rankid);
     }
+    // else if (ret == ncclSuccess) {
+    // /* Successfully issued */
+    // printf("Rankid: %u, intrinsic AlltoAll succeeded\n", rankid);
+    // }
 
     // Load balance
     for (uint s = 0; s != server_n; s++){
@@ -176,10 +178,11 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             do {
             ncclCommGetAsyncError(comm, &state);
             } while (state == ncclInProgress);
-        } else if (ret == ncclSuccess) {
-        /* Successfully issued */
-        printf("Rankid: %u, load Balance from server %u to server %u\n", rankid, server_id, s);
         }
+        // else if (ret == ncclSuccess) {
+        // /* Successfully issued */
+        // printf("Rankid: %u, load Balance from server %u to server %u\n", rankid, server_id, s);
+        // }
     }
 
     /* ------------------------------------------------------
@@ -236,12 +239,13 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         do {
         ncclCommGetAsyncError(comm, &state);
         } while (state == ncclInProgress);
-    } else if (ret == ncclSuccess) {
-    /* Successfully issued */
-    printf("Rank %u: step 0 - issue succeeded\n", rankid);
     }
+    // else if (ret == ncclSuccess) {
+    // /* Successfully issued */
+    // printf("Rank %u: step 0 - issue succeeded\n", rankid);
+    // }
 
-    // // middle steps
+    // middle steps
     uint prev_dst_server = dst_server,
         prev_src_server = src_server;
     struct scheduling_step_t prev_step = cur_step;
@@ -372,10 +376,11 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             do {
             ncclCommGetAsyncError(comm, &state);
             } while (state == ncclInProgress);
-        } else if (ret == ncclSuccess) {
-        /* Successfully issued */
-        printf("Rank %u: step %u - issue succeeded\n", rankid, step_id);
         }
+        // else if (ret == ncclSuccess) {
+        // /* Successfully issued */
+        // printf("Rank %u: step %u - issue succeeded\n", rankid, step_id);
+        // }
 
 
         // direct cpy
@@ -481,15 +486,17 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         }
     }
 
+
     ret = ncclGroupEnd();
     if (ret == ncclInProgress) {
         do {
         ncclCommGetAsyncError(comm, &state);
         } while (state == ncclInProgress);
-    } else if (ret == ncclSuccess) {
-    /* Successfully issued */
-    printf("Rank: %u, Kernel - step %u - issue succeeded\n", rankid, step_n-1);
     }
+    // else if (ret == ncclSuccess) {
+    // /* Successfully issued */
+    // printf("Rank: %u, Kernel - step %u - issue succeeded\n", rankid, step_n-1);
+    // }
 
     return ncclSuccess;
 }
