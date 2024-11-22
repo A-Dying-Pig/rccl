@@ -120,23 +120,14 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             recvpos[global_comm_gpu] += recv_data_sz;
         }
     }
-    ret = ncclGroupEnd();
-    if (ret == ncclInProgress) {
-        do {
-        ncclCommGetAsyncError(comm, &state);
-        } while (state == ncclInProgress);
-    }
-    // else if (ret == ncclSuccess) {
-    // /* Successfully issued */
-    // printf("Rankid: %u, intrinsic AlltoAll succeeded\n", rankid);
-    // }
+    NCCLCHECK(ncclGroupEnd());
 
     // Load balance
+    NCCLCHECK(ncclGroupStart());
     for (uint s = 0; s != server_n; s++){
         if (s == server_id){
             continue;
         }
-        NCCLCHECK(ncclGroupStart());
         for (uint local_gpu = 0; local_gpu < gpu_n; local_gpu++){
             for (uint channel_id = 0; channel_id < gpu_n; channel_id ++){
                 size_t send_data_sz = (sched -> balance)[server_id][s][local_rank_id * gpu_n + local_gpu].sz[channel_id];
@@ -173,17 +164,9 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
                 }
             }
         }
-        ret = ncclGroupEnd();
-        if (ret == ncclInProgress) {
-            do {
-            ncclCommGetAsyncError(comm, &state);
-            } while (state == ncclInProgress);
-        }
-        // else if (ret == ncclSuccess) {
-        // /* Successfully issued */
-        // printf("Rankid: %u, load Balance from server %u to server %u\n", rankid, server_id, s);
-        // }
     }
+    NCCLCHECK(ncclGroupEnd());
+
 
     /* ------------------------------------------------------
         Pipeline Stage
@@ -382,20 +365,6 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         // printf("Rank %u: step %u - issue succeeded\n", rankid, step_id);
         // }
 
-
-        // direct cpy
-        // for (uint from_gpu = 0; from_gpu < gpu_n; from_gpu ++){
-        //     if (dcopy_sched[from_gpu].sz > 0){
-        //         src_gpu_global_id = prev_src_server  * gpu_n + from_gpu;
-        //         uint src_gpu_tempbuff_id = local_rank_id * gpu_n + from_gpu;
-        //         void * src_ptr = (char *) tempbuff + prev_tempbuff_offset + src_gpu_tempbuff_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK;
-        //         void * dst_ptr = (char *) recvbuff + src_gpu_global_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK + dcopy_sched[from_gpu].offset * ncclTypeSize(datatype);
-        //         hipMemcpy(dst_ptr, src_ptr, ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz, hipMemcpyDeviceToDevice);
-        //         recvpos[src_gpu_global_id] += dcopy_sched[from_gpu].sz;
-        //     }
-        // }
-
-
         prev_src_server = src_server;
         prev_dst_server = dst_server;
     }
@@ -465,7 +434,6 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             uint src_gpu_tempbuff_id = local_rank_id * gpu_n + from_gpu;
             void * src_ptr = (char *) tempbuff + prev_tempbuff_offset + src_gpu_tempbuff_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK;
             void * dst_ptr = (char *) recvbuff + src_gpu_global_id * ncclTypeSize(datatype) * MAX_BUFFER_SIZE_PER_RANK + dcopy_sched[from_gpu].offset * ncclTypeSize(datatype);
-            // hipMemcpy(dst_ptr, src_ptr, ncclTypeSize(datatype) * dcopy_sched[from_gpu].sz, hipMemcpyDeviceToDevice);
             NCCLCHECK(ncclSend(
                     src_ptr,
                     dcopy_sched[from_gpu].sz,
@@ -485,18 +453,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
             recvpos[src_gpu_global_id] += dcopy_sched[from_gpu].sz;
         }
     }
-
-
-    ret = ncclGroupEnd();
-    if (ret == ncclInProgress) {
-        do {
-        ncclCommGetAsyncError(comm, &state);
-        } while (state == ncclInProgress);
-    }
-    // else if (ret == ncclSuccess) {
-    // /* Successfully issued */
-    // printf("Rank: %u, Kernel - step %u - issue succeeded\n", rankid, step_n-1);
-    // }
+    NCCLCHECK(ncclGroupEnd());
 
     return ncclSuccess;
 }
