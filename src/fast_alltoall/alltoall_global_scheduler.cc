@@ -5,16 +5,17 @@
 #include <hip/hip_runtime.h>
 
 
-void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gpu_n, uint * demand_matrix){
+void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gpu_n, uint * demand_matrix,  uint rankid){
     gs->server_n = _server_n;
     gs->gpu_n = _gpu_n;
     uint dim = gs->gpu_n * gs->server_n;
     for (uint s = 0; s < gs->server_n; s++){
-        hipMallocManaged((void**)&gs->locals[s], sizeof(LocalScheduler));
+        gs->locals[s] = (LocalScheduler *) malloc(sizeof(LocalScheduler));
+        // hipMallocManaged((void**)&gs->locals[s], sizeof(LocalScheduler));
         init_local_scheduler(gs->locals[s], demand_matrix + s * dim * gs->gpu_n, gs->gpu_n, gs->server_n, s);
     }
-    uint * data;
-    hipMallocManaged((void**)&data, sizeof(uint) * gs->server_n * gs->server_n);
+    uint * data = (uint *) malloc(sizeof(uint) * gs->server_n * gs->server_n);
+    // hipMallocManaged((void**)&data, sizeof(uint) * gs->server_n * gs->server_n);
     // uint *data = new uint[server_n * server_n];
     for (uint s = 0; s < gs->server_n; s++){
        uint src_svr = gs->locals[s] -> server_id;
@@ -24,12 +25,20 @@ void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gp
     }
     init_matrix(&gs->mat);
     copy_matrix(&gs->mat, data, gs->server_n);
-    hipFree((void*) data);
-
-    hipMallocManaged((void**) &gs->sched, sizeof(scheduling_result_t));
-    hipMemset(gs->sched, 0, sizeof(scheduling_result_t));
+    free(data);
+    // hipFree((void*) data);
+    gs->sched = (scheduling_result_t *) malloc(sizeof(scheduling_result_t));
+    memset(gs->sched, 0, sizeof(scheduling_result_t));
+    // hipMallocManaged((void**) &gs->sched, sizeof(scheduling_result_t));
+    // hipMemset(gs->sched, 0, sizeof(scheduling_result_t));
     gs->sched->gpu_n = _gpu_n;
     gs->sched->server_n = _server_n;
+
+    gs->gpu_sched = (scheduling_result_gpu_t *) malloc(sizeof(scheduling_result_gpu_t));
+    memset(gs->gpu_sched, 0, sizeof(scheduling_result_gpu_t));
+    gs->gpu_sched->gpu_n = gpu_n;
+    gs->gpu_sched->server_n = server_n;
+    gs->gpu_sched->rankid = rankid;
 }
 
 void free_global_scheduler(struct GlobalScheduler * gs){
@@ -37,7 +46,9 @@ void free_global_scheduler(struct GlobalScheduler * gs){
      for (uint s = 0; s < gs->server_n; s++){
         free_local_scheduler(gs->locals[s]);
     }
-    hipFree(gs->sched);
+    free(gs->sched);
+    free(gs->gpu_sched);
+    // hipFree(gs->sched);
 }
 
 
@@ -67,7 +78,8 @@ void run_scheduler(struct GlobalScheduler * gs){
     // get intrinsic all-to-all
     for (lid = 0; lid < gs->server_n; lid++){
         uint src_svr = gs->locals[lid]->server_id;
-        hipMemcpy(gs->sched->intrinsic_ata[src_svr], gs->locals[lid]->intrinsic_all2all, gs->gpu_n * gs->gpu_n * sizeof(TransferMatrixElement), hipMemcpyHostToHost);
+        memcpy(gs->sched->intrinsic_ata[src_svr], gs->locals[lid]->intrinsic_all2all, gs->gpu_n * gs->gpu_n * sizeof(TransferMatrixElement));
+        // hipMemcpy(gs->sched->intrinsic_ata[src_svr], gs->locals[lid]->intrinsic_all2all, gs->gpu_n * gs->gpu_n * sizeof(TransferMatrixElement), hipMemcpyHostToHost);
     }
 
     uint step_id = 0;
@@ -89,3 +101,20 @@ void run_scheduler(struct GlobalScheduler * gs){
     gs->sched->step_n = all2all.p_sets_n + 1;
 }
 
+
+void run_scheduler_gpu(struct GlobalScheduler * gs){
+
+
+
+}
+
+
+struct alltoall_buffer allocate_buffer(struct GlobalScheduler * gs){
+    //----------------------------------------------------------------------
+    // Send buff: | DST RANK 0 | DST RANK 1 | DST RANK 2 | ... | DST RANK n |
+    //  ----Each DST RANK are sharded into at most gpu# regions, region i stores data whose source is local GPU i
+
+
+
+
+}

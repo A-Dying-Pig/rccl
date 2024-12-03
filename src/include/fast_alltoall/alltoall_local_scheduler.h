@@ -39,3 +39,33 @@ void print_local_scheduler(struct LocalScheduler * ls, uint dst_server_id);
 
 void print_matrix(uint * data, uint m, uint n);
 
+
+void intrinsic_alltoall_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    uint (*send)[GPU_NUM_PER_SERVER],
+    uint * send_n,
+    uint (*recv)[GPU_NUM_PER_SERVER],
+    uint recv_n
+);
+
+void balance_servers_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    struct balance_data_t (*send)[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER],
+    uint * send_n,
+    struct balance_data_t (*recv)[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER],
+    uint * recv_n);
+
+void restore_one_server_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    uint to_server_id,
+    uint crossnode,
+    struct recv_data_t (*restore_send)[GPU_NUM_PER_SERVER],
+    uint * restore_send_n,
+    struct recv_data_t (*restore_recv)[GPU_NUM_PER_SERVER],
+    uint * restore_recv_n,
+    uint (*cpy)[GPU_NUM_PER_SERVER],
+    uint * cpy_n,
+    uint freq);

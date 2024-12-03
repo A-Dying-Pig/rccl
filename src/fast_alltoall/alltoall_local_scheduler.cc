@@ -12,17 +12,23 @@ void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, 
     ls->server_n = _server_n;
     ls->server_id = _server_id;
     uint dim = ls->gpu_n * ls->server_n;
-    hipMallocManaged((void**) &ls->data, sizeof(uint*) * ls->gpu_n);
-    hipMallocManaged((void**) &ls->balanced_data, sizeof(uint*) * ls->gpu_n);
-    hipMallocManaged((void**) &ls->data_after_balance, sizeof(data_t*) * ls->gpu_n);
+    // hipMallocManaged((void**) &ls->data, sizeof(uint*) * ls->gpu_n);
+    // hipMallocManaged((void**) &ls->balanced_data, sizeof(uint*) * ls->gpu_n);
+    // hipMallocManaged((void**) &ls->data_after_balance, sizeof(data_t*) * ls->gpu_n);
+    ls->data = (uint**) malloc(sizeof(uint *) * ls->gpu_n);
+    ls->balanced_data = (uint **) malloc(sizeof(uint*) * ls->gpu_n);
+    ls->data_after_balance = (data_t **) malloc(sizeof(data_t*) * ls->gpu_n);
     // data = new uint*[gpu_n];
     // balanced_data = new uint*[gpu_n];
     // data_after_balance = new data_t*[gpu_n];
     uint idx = 0;
     for (uint i = 0; i < ls->gpu_n; i++){
-        hipMallocManaged((void**)&ls->data[i], sizeof(uint) * dim);
-        hipMallocManaged((void**)&ls->balanced_data[i], sizeof(uint) * dim);
-        hipMallocManaged((void**)&ls->data_after_balance[i], sizeof(data_t) * dim);
+        // hipMallocManaged((void**)&ls->data[i], sizeof(uint) * dim);
+        // hipMallocManaged((void**)&ls->balanced_data[i], sizeof(uint) * dim);
+        // hipMallocManaged((void**)&ls->data_after_balance[i], sizeof(data_t) * dim);
+        ls->data[i] = (uint*) malloc(sizeof(uint) * dim);
+        ls->balanced_data[i] = (uint*) malloc(sizeof(uint) * dim);
+        ls->data_after_balance[i] = (data_t*) malloc(sizeof(data_t) * dim);
         // data[i] = new uint[dim];
         // balanced_data[i] = new uint[dim];
         // data_after_balance[i] = new data_t[dim];
@@ -38,12 +44,19 @@ void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, 
             idx++;
         }
     }
-    hipMallocManaged((void**)&ls->server2server_data, sizeof(uint) * ls->server_n);
-    hipMemset(ls->server2server_data, 0, ls->server_n * sizeof(uint));
-    hipMallocManaged((void**)&ls->row_sum, sizeof(uint) * ls->gpu_n * ls->server_n);
-    hipMemset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
-    hipMallocManaged((void**)&ls->intrinsic_all2all, sizeof(uint) * ls->gpu_n * ls->gpu_n);
-    hipMemset(ls->intrinsic_all2all, 0, ls->gpu_n * ls->gpu_n * sizeof(uint));
+    ls->server2server_data = (uint *) malloc(sizeof(uint) * ls->server_n);
+    memset(ls->server2server_data, 0, ls->server_n * sizeof(uint));
+    ls->row_sum = (uint *) malloc(sizeof(uint) * ls->gpu_n * ls->server_n);
+    memset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
+    ls->intrinsic_all2all = (uint *) malloc( sizeof(uint) *  ls->gpu_n * ls->gpu_n);
+    memset(ls->intrinsic_all2all, 0, ls->gpu_n * ls->gpu_n * sizeof(uint));
+
+    // hipMallocManaged((void**)&ls->server2server_data, sizeof(uint) * ls->server_n);
+    // hipMemset(ls->server2server_data, 0, ls->server_n * sizeof(uint));
+    // hipMallocManaged((void**)&ls->row_sum, sizeof(uint) * ls->gpu_n * ls->server_n);
+    // hipMemset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
+    // hipMallocManaged((void**)&ls->intrinsic_all2all, sizeof(uint) * ls->gpu_n * ls->gpu_n);
+    // hipMemset(ls->intrinsic_all2all, 0, ls->gpu_n * ls->gpu_n * sizeof(uint));
     // server2server_data = new uint[server_n];
     // memset(server2server_data, 0, server_n * sizeof(uint));
     // row_sum = new uint[gpu_n * server_n];
@@ -56,19 +69,30 @@ void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, 
 
 void free_local_scheduler(struct LocalScheduler * ls){
     for (uint i = 0; i < ls->gpu_n; i++){
-        hipFree(ls->data[i]);
-        hipFree(ls->balanced_data[i]);
-        hipFree(ls->data_after_balance[i]);
+        free(ls->data[i]);
+        free(ls->balanced_data[i]);
+        free(ls->data_after_balance[i]);
+
+        // hipFree(ls->data[i]);
+        // hipFree(ls->balanced_data[i]);
+        // hipFree(ls->data_after_balance[i]);
         // delete[] data[i];
         // delete[] balanced_data[i];
         // delete[] data_after_balance[i];
     }
-    hipFree(ls->data);
-    hipFree(ls->balanced_data);
-    hipFree(ls->data_after_balance);
-    hipFree(ls->server2server_data);
-    hipFree(ls->row_sum);
-    hipFree(ls->intrinsic_all2all);
+    free(ls->data);
+    free(ls->balanced_data);
+    free(ls->data_after_balance);
+    free(ls->server2server_data);
+    free(ls->row_sum);
+    free(ls->intrinsic_all2all);
+
+    // hipFree(ls->data);
+    // hipFree(ls->balanced_data);
+    // hipFree(ls->data_after_balance);
+    // hipFree(ls->server2server_data);
+    // hipFree(ls->row_sum);
+    // hipFree(ls->intrinsic_all2all);
     // delete[] data;
     // delete[] balanced_data;
     // delete[] data_after_balance;
@@ -78,7 +102,8 @@ void free_local_scheduler(struct LocalScheduler * ls){
 }
 
 void prepare_load_balance(struct LocalScheduler * ls){
-    hipMemset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
+    memset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
+    // hipMemset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
     // memset(row_sum, 0, gpu_n * server_n * sizeof(uint));
     for (uint i = 0; i < ls->server_n; i++){
         if (i == ls->server_id){
@@ -171,14 +196,39 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct ba
     }
 }
 
+void balance_servers_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    struct balance_data_t (*send)[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER],
+    uint * send_n,
+    struct balance_data_t (*recv)[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER],
+    uint * recv_n){
+
+
+    for (uint i = 0; i < ls->server_n; i++){
+        // i is the dst server to be balanced
+        if (i == ls->server_id){
+            continue;
+        }
+
+
+
+
+
+    }
+}
+
+
+
+
 
 void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*channel)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], struct recv_data_t (*r)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], struct recv_data_t (*dcpy)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint freq){
     if (to_server_id == ls->server_id){
         return;
     }
     // uint * row_transfer = new uint[gpu_n];
-    uint * row_transfer;
-    hipMallocManaged((void**) &row_transfer, sizeof(uint) * ls->gpu_n);
+    uint * row_transfer = (uint *) malloc (sizeof(uint) * ls->gpu_n);
+    // hipMallocManaged((void**) &row_transfer, sizeof(uint) * ls->gpu_n);
     for (uint i = 0; i < ls->gpu_n; i++){    // src gpu
 
         row_transfer[i] = 0;
@@ -212,12 +262,44 @@ void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*ch
         }
 
     }
-    hipFree(row_transfer);
+    free(row_transfer);
+    // hipFree(row_transfer);
     // delete[] row_transfer;
 
 }
 
 
+
+void restore_one_server_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    uint to_server_id,
+    uint crossnode,
+    struct recv_data_t (*restore_send)[GPU_NUM_PER_SERVER],
+    uint * restore_send_n,
+    struct recv_data_t (*restore_recv)[GPU_NUM_PER_SERVER],
+    uint * restore_recv_n,
+    uint (*cpy)[GPU_NUM_PER_SERVER],
+    uint * cpy_n,
+    uint freq){
+
+
+
+}
+
+
+
+void intrinsic_alltoall_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    uint (*send)[GPU_NUM_PER_SERVER],
+    uint * send_n,
+    uint (*recv)[GPU_NUM_PER_SERVER],
+    uint recv_n
+){
+
+
+}
 
 void print_local_scheduler(struct LocalScheduler * ls, uint dst_server_id){
     // cout << "server "<< ls->server_id << " to server " << dst_server_id << endl;
