@@ -12,9 +12,11 @@ void init_matrix(struct Matrix *m, uint _dim){
     m->sdsm_info.is_sdsm = false;
     m->sdsm_info.max_row_col_sum = 0;
     if (_dim > 0){
-        hipMallocManaged((void**) &m->data, sizeof(uint*) * _dim);
+        m->data = (uint **) malloc(sizeof(uint*) * _dim);
+        // hipMallocManaged((void**) &m->data, sizeof(uint*) * _dim);
         for (uint i = 0; i < _dim; i++){
-            hipMallocManaged((void**) &m->data[i], sizeof(uint) * _dim);
+            m->data[i] = (uint *) malloc(sizeof(uint) * _dim);
+            // hipMallocManaged((void**) &m->data[i], sizeof(uint) * _dim);
             for (uint j = 0; j < _dim; j++){
                 m->data[i][j] = 0;
             }
@@ -27,9 +29,11 @@ void free_matrix(struct Matrix *m){
     // cout << "releasing matrix memory" << endl;
     if (m->data){
         for (uint i = 0; i < m->dim; i++){
-            hipFree(m->data[i]);
+            free(m->data[i]);
+            // hipFree(m->data[i]);
         }
-        hipFree(m->data);
+        free(m->data);
+        // hipFree(m->data);
     }
 }
 
@@ -38,17 +42,21 @@ void copy_matrix(struct Matrix *m, uint * _data, uint source_dim){
     if (m->dim > 0 && m->data != NULL && m->dim != source_dim){
         // matrix dimension different - release memory first
         for (uint i = 0; i < m->dim; i++){
-            hipFree(m->data[i]);
+            free(m->data[i]);
+            // hipFree(m->data[i]);
             // delete[] data[i];
         }
-        hipFree(m->data);
+        free(m->data);
+        // hipFree(m->data);
         // delete[] data;
     }
     if (m->dim != source_dim){
-        hipMallocManaged((void**) &m->data, sizeof(uint*) * source_dim);
+        m->data = (uint **) malloc(sizeof(uint*) * source_dim);
+        // hipMallocManaged((void**) &m->data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            hipMallocManaged((void**) &m->data[i], sizeof(uint) * source_dim);
+            m->data[i] = (uint *) malloc(sizeof(uint) * source_dim);
+            // hipMallocManaged((void**) &m->data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
     }
@@ -71,15 +79,19 @@ void copy_matrix(struct Matrix *dst, struct Matrix * src){
     if (dst->dim > 0 && dst->data != NULL && dst->dim != source_dim){
         // matrix dimension different - release memory first
         for (uint i = 0; i < dst->dim; i++){
-            hipFree(dst->data[i]);
+            free(dst->data[i]);
+            // hipFree(dst->data[i]);
         }
-        hipFree(dst->data);
+        free(dst->data);
+        // hipFree(dst->data);
     }
     if (dst->dim != source_dim){
-        hipMallocManaged((void**) &dst->data, sizeof(uint*) * source_dim);
+        dst->data = (uint **) malloc(sizeof(uint *) * source_dim);
+        // hipMallocManaged((void**) &dst->data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            hipMallocManaged((void**) &dst->data[i], sizeof(uint) * source_dim);
+            dst->data[i] = (uint *) malloc(sizeof(uint) * source_dim);
+            // hipMallocManaged((void**) &dst->data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
     }

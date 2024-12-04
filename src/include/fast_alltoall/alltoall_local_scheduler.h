@@ -3,7 +3,7 @@
 #include "alltoall_define.h"
 
 struct data_t{
-    uint sz[MAX_GPU_PER_SERVER];
+    uint sz[MAX_GPU_PER_SERVER];        // actual source gpu
     uint offset[MAX_GPU_PER_SERVER];
     uint sum;
 };
@@ -38,4 +38,3 @@ void print_local_scheduler(struct LocalScheduler * ls);
 void print_local_scheduler(struct LocalScheduler * ls, uint dst_server_id);
 
 void print_matrix(uint * data, uint m, uint n);
-
