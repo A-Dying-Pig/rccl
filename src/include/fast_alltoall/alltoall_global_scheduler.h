@@ -31,7 +31,6 @@ struct scheduling_result_t{
 
 
 
-
 struct memcopy_buffer_t{
     uint src_disp;
     uint dst_disp;

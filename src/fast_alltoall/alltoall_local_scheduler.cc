@@ -197,6 +197,31 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct ba
 
 }
 
+void balance_servers_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    struct balance_data_t (*send)[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER],
+    uint * send_n,
+    struct balance_data_t (*recv)[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER],
+    uint * recv_n){
+
+
+    for (uint i = 0; i < ls->server_n; i++){
+        // i is the dst server to be balanced
+        if (i == ls->server_id){
+            continue;
+        }
+
+
+
+
+
+    }
+}
+
+
+
+
 
 void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*channel)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], struct recv_data_t (*r)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], struct recv_data_t (*dcpy)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint freq){
     if (to_server_id == ls->server_id){
@@ -245,6 +270,37 @@ void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*ch
 }
 
 
+
+void restore_one_server_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    uint to_server_id,
+    uint crossnode,
+    struct recv_data_t (*restore_send)[GPU_NUM_PER_SERVER],
+    uint * restore_send_n,
+    struct recv_data_t (*restore_recv)[GPU_NUM_PER_SERVER],
+    uint * restore_recv_n,
+    uint (*cpy)[GPU_NUM_PER_SERVER],
+    uint * cpy_n,
+    uint freq){
+
+
+
+}
+
+
+
+void intrinsic_alltoall_gpu(
+    uint rankid,
+    struct LocalScheduler * ls,
+    uint (*send)[GPU_NUM_PER_SERVER],
+    uint * send_n,
+    uint (*recv)[GPU_NUM_PER_SERVER],
+    uint recv_n
+){
+
+
+}
 
 void print_local_scheduler(struct LocalScheduler * ls, uint dst_server_id){
     // cout << "server "<< ls->server_id << " to server " << dst_server_id << endl;
