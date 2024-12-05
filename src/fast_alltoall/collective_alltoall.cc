@@ -250,7 +250,7 @@ ncclAllToAllv2_impl(void* sendbuff, size_t sendcounts[], size_t sendpos[],
         dcopy_sched = cur_step.direct_cpy[prev_src_server][local_rank_id];
 
         cur_tempbuff_offset = (step_id % 2 == 1) ? TEMPBUFF_OFFSET : 0;
-        prev_tempbuff_offset = ((step_n - 1) % 2 == 1) ? 0 : TEMPBUFF_OFFSET;
+        prev_tempbuff_offset = ((step_id - 1) % 2 == 1) ? 0 : TEMPBUFF_OFFSET;
 
         NCCLCHECK(ncclGroupStart());
         for (uint local_gpu = 0; local_gpu < gpu_n; local_gpu++){
