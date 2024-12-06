@@ -83,6 +83,7 @@ struct scheduling_result_gpu_t{
 struct sendbuff_region_t{
     uint src_gpu_disp[GPU_NUM_PER_SERVER];
     uint src_gpu_sz[GPU_NUM_PER_SERVER];
+    uint src_gpu_offset[GPU_NUM_PER_SERVER];
     uint src_gpu_n;
 };
 
@@ -90,6 +91,7 @@ struct sendbuff_region_t{
 struct lbbuff_region_t{
     uint server_disp[MAX_SERVER_NUM];
     uint server_sz[MAX_SERVER_NUM];
+    uint server_offset[MAX_SERVER_NUM];
     uint server_n;
 };
 

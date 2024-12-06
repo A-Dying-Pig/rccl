@@ -61,7 +61,7 @@ void run_scheduler(struct GlobalScheduler * gs){
     init_fastall2all(&all2all, &gs->mat);
     to_scaled_doubly_stochastic_matrix_fastall2all(&all2all);
     decompose_fastall2all(&all2all);
-    LOG("verify deccomposition: %u\n", verify_decomposition_fastall2all(&all2all));
+    // LOG("verify deccomposition: %u\n", verify_decomposition_fastall2all(&all2all));
     uint pid = 0, lid = 0;
 
     /* Start Pipelining*/
@@ -111,14 +111,13 @@ void run_scheduler(struct GlobalScheduler * gs){
 
     schedule_this_gpu(gs);
 
-    printf("------------Buffer size, rank: %u-----------------\n \
-            sendbuff: %u\n, \
-            recvbuff: %u\n, \
-            lbsendbuff: %u\n, \
-            lbrecvbuff: %u\n, \
-            crosbuff: %u\n, \
-            rstrbuff: %u\n \
-            --------------------------------------------------\n",
+    uint cross_node_sz = 0;
+    for (uint j = 0; j < gs->server_n; j++){
+        cross_node_sz += gs->locals[gs->sched->rankid / gs->sched->gpu_n]->server2server_data[j];
+    }
+    printf("cross node send size: %u\n", cross_node_sz);
+
+    printf("------------Buffer size, rank: %u -----------------\n\tsendbuff: %u\n\trecvbuff: %u\n\tlbsendbuff: %u\n\tlbrecvbuff: %u\n\tcrosbuff: %u\n\trstrbuff: %u\n-------------------------------------------------------\n",
             gs->gpu_sched->rankid,
             gs->buff_parameter->sendbuff_total_sz,
             gs->buff_parameter->recvbuff_total_sz,
@@ -157,6 +156,7 @@ void get_buffer_size(struct GlobalScheduler * gs){
                 if (send_data_sz > 0){
                     gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_disp[s] = gs->buff_parameter->lbsend_total_sz;
                     gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_sz[s] = send_data_sz;
+                    gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_offset[s] = (gs -> sched -> balance)[server_id][s][local_rank_id * gpu_n + local_gpu].offset[dst_gpu];;
                     gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_n ++;
                     gs->buff_parameter->lbsend_total_sz += send_data_sz;
                     send_region_sz += send_data_sz;
@@ -194,6 +194,7 @@ void get_buffer_size(struct GlobalScheduler * gs){
             if (lb_data_sz > 0){
                 gs->buff_parameter->sendbuff_region[i].src_gpu_disp[src_gpu] = gs->buff_parameter->sendbuff_total_sz;
                 gs->buff_parameter->sendbuff_region[i].src_gpu_sz[src_gpu] = lb_data_sz;
+                gs->buff_parameter->sendbuff_region[i].src_gpu_offset[src_gpu] = gs->locals[server_id]->data_after_balance[local_rank_id][i].offset[src_gpu];;
                 gs->buff_parameter->sendbuff_total_sz += lb_data_sz;
                 gs->buff_parameter->sendbuff_region[i].src_gpu_n ++;
             }
@@ -306,7 +307,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
 
     // calculate buffer size of crosbuff
     uint crosbuff_sz = 0;
-    for (uint step_id = 1; step_id < gs->sched->step_n - 1; step_id++){
+    for (uint step_id = 0; step_id < gs->sched->step_n - 1; step_id++){
         crosbuff_sz = MAX(crosbuff_sz, (gs -> sched -> steps)[step_id].crossnode_sz[server_id][local_rank_id]);
     }
     // make it 512-byte aligned
