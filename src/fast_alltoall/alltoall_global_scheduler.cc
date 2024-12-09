@@ -61,7 +61,7 @@ void run_scheduler(struct GlobalScheduler * gs){
     init_fastall2all(&all2all, &gs->mat);
     to_scaled_doubly_stochastic_matrix_fastall2all(&all2all);
     decompose_fastall2all(&all2all);
-    LOG("verify deccomposition: %u\n", verify_decomposition_fastall2all(&all2all));
+    // LOG("verify deccomposition: %u\n", verify_decomposition_fastall2all(&all2all));
     uint pid = 0, lid = 0;
 
     /* Start Pipelining*/
@@ -111,14 +111,13 @@ void run_scheduler(struct GlobalScheduler * gs){
 
     schedule_this_gpu(gs);
 
-    printf("------------Buffer size, rank: %u-----------------\n \
-            sendbuff: %u\n, \
-            recvbuff: %u\n, \
-            lbsendbuff: %u\n, \
-            lbrecvbuff: %u\n, \
-            crosbuff: %u\n, \
-            rstrbuff: %u\n \
-            --------------------------------------------------\n",
+    uint cross_node_sz = 0;
+    for (uint j = 0; j < gs->server_n; j++){
+        cross_node_sz += gs->locals[gs->sched->rankid / gs->sched->gpu_n]->server2server_data[j];
+    }
+    printf("cross node send size: %u\n", cross_node_sz);
+
+    printf("------------Buffer size, rank: %u -----------------\n\tsendbuff: %u\n\trecvbuff: %u\n\tlbsendbuff: %u\n\tlbrecvbuff: %u\n\tcrosbuff: %u\n\trstrbuff: %u\n-------------------------------------------------------\n",
             gs->gpu_sched->rankid,
             gs->buff_parameter->sendbuff_total_sz,
             gs->buff_parameter->recvbuff_total_sz,
@@ -157,6 +156,7 @@ void get_buffer_size(struct GlobalScheduler * gs){
                 if (send_data_sz > 0){
                     gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_disp[s] = gs->buff_parameter->lbsend_total_sz;
                     gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_sz[s] = send_data_sz;
+                    gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_offset[s] = (gs -> sched -> balance)[server_id][s][local_rank_id * gpu_n + local_gpu].offset[dst_gpu];;
                     gs->buff_parameter->lbsend_area[local_gpu].dst_gpu_region[dst_gpu].server_n ++;
                     gs->buff_parameter->lbsend_total_sz += send_data_sz;
                     send_region_sz += send_data_sz;
@@ -189,15 +189,19 @@ void get_buffer_size(struct GlobalScheduler * gs){
     gs->buff_parameter->sendbuff_total_sz = 0;
     for (uint i = 0; i < server_n * gpu_n; i ++){
         gs->buff_parameter->sendbuff_disp[i] = gs->buff_parameter->sendbuff_total_sz;
+        uint send_buff_sz = 0;
         for (uint src_gpu = 0; src_gpu < gpu_n; src_gpu ++){
             uint lb_data_sz = gs->locals[server_id]->data_after_balance[local_rank_id][i].sz[src_gpu];
             if (lb_data_sz > 0){
                 gs->buff_parameter->sendbuff_region[i].src_gpu_disp[src_gpu] = gs->buff_parameter->sendbuff_total_sz;
                 gs->buff_parameter->sendbuff_region[i].src_gpu_sz[src_gpu] = lb_data_sz;
+                gs->buff_parameter->sendbuff_region[i].src_gpu_offset[src_gpu] = gs->locals[server_id]->data_after_balance[local_rank_id][i].offset[src_gpu];;
                 gs->buff_parameter->sendbuff_total_sz += lb_data_sz;
+                send_buff_sz += lb_data_sz;
                 gs->buff_parameter->sendbuff_region[i].src_gpu_n ++;
             }
         }
+        gs->buff_parameter->sendbuff_sz[i] = send_buff_sz;
     }
 
     gs->buff_parameter->recvbuff_total_sz = 0;
@@ -306,14 +310,14 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
 
     // calculate buffer size of crosbuff
     uint crosbuff_sz = 0;
-    for (uint step_id = 1; step_id < gs->sched->step_n - 1; step_id++){
+    for (uint step_id = 0; step_id < gs->sched->step_n - 1; step_id++){
         crosbuff_sz = MAX(crosbuff_sz, (gs -> sched -> steps)[step_id].crossnode_sz[server_id][local_rank_id]);
     }
     // make it 512-byte aligned
     crosbuff_sz  = (crosbuff_sz + 0x1ff) & 0xfffffe00;
     gs -> buff_parameter->crosbuff_total_sz = crosbuff_sz * 2;
     gs -> buff_parameter->crosbuff_offset = crosbuff_sz;
-    uint rstrbuff_sz = 0;
+    uint rstrbuff_sz = 0, max_rstrbuff_sz = 0;
 
 
     // first step
@@ -378,6 +382,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
         restore_alltoall_senddisp = 0;
         restore_alltoall_recvdisp = 0;
         direct_cpy_disp = 0;
+        rstrbuff_sz = 0;
         memset(restore_recvdisp, 0, sizeof(uint) * MAX_GPU_PER_SERVER);
         for (uint local_gpu = 0; local_gpu < gpu_n; local_gpu ++){
             size_t send_data_sz = cur_step -> restore_alltoall_sz[prev_src_server][local_rank_id][local_gpu];
@@ -404,9 +409,10 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
                 restore_alltoall_recvdisp += recv_data_sz;
                 cur_gpu_step -> restore_recv_n ++;
                 // calculate restore buffer size
-                rstrbuff_sz = MAX(rstrbuff_sz, recv_data_sz);
+                rstrbuff_sz += recv_data_sz;
             }
         }
+        max_rstrbuff_sz = MAX(max_rstrbuff_sz, rstrbuff_sz);
 
         // direct copy
         direct_cpy_src_disp = 0;
@@ -451,6 +457,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
     restore_alltoall_senddisp = 0;
     restore_alltoall_recvdisp = 0;
     direct_cpy_disp = 0;
+    rstrbuff_sz = 0;
     memset(restore_recvdisp, 0, sizeof(uint) * MAX_GPU_PER_SERVER);
     for (uint local_gpu = 0; local_gpu < gpu_n; local_gpu ++){
         size_t send_data_sz = cur_step -> restore_alltoall_sz[prev_src_server][local_rank_id][local_gpu];
@@ -477,9 +484,10 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
             restore_alltoall_recvdisp += recv_data_sz;
             cur_gpu_step -> restore_recv_n ++;
             // calculate restore buffer size
-            rstrbuff_sz = MAX(rstrbuff_sz, recv_data_sz);
+            rstrbuff_sz += recv_data_sz;
         }
     }
+    max_rstrbuff_sz = MAX(max_rstrbuff_sz, rstrbuff_sz);
 
     // direct copy
     direct_cpy_src_disp = 0;
@@ -511,5 +519,5 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
         }
     }
 
-    gs -> buff_parameter -> rstrbuff_total_sz = rstrbuff_sz;
+    gs -> buff_parameter -> rstrbuff_total_sz = max_rstrbuff_sz;
 }

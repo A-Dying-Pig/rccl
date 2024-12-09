@@ -177,6 +177,7 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct ba
                 ls->row_sum[to_server_id * ls->gpu_n + small_row] += mv_data;
                 ls->row_sum[to_server_id * ls->gpu_n + big_row] -= mv_data;
                 (*r)[big_row * ls->gpu_n + small_row].sz[j] += mv_data;
+                (*r)[big_row * ls->gpu_n + small_row].offset[j] = ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].offset[big_row];
 
                 // cout << "lb server" << server_id << ", dst server" << to_server_id << ", mv data: " << mv_data<<", big row: " << *big_row << ", small row: " << *small_row <<", lb dst gpu: " << j << endl;
                 ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sz[big_row] -= mv_data;

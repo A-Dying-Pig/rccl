@@ -15,6 +15,7 @@ struct recv_data_t{
 
 struct balance_data_t{
     uint sz[MAX_GPU_PER_SERVER];    // transferred data size for each local gpu
+    uint offset[MAX_GPU_PER_SERVER];
 };
 
 struct LocalScheduler{
