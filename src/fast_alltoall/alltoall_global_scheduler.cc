@@ -325,6 +325,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
     }
     // make it 512-byte aligned
     crosbuff_sz  = mem_align(crosbuff_sz);
+
     gs -> buff_parameter->crosbuff_total_sz = crosbuff_sz;
     // gs -> buff_parameter->crosbuff_offset = crosbuff_sz;
     uint rstrbuff_sz = 0, max_rstrbuff_sz = 0;
