@@ -310,7 +310,7 @@ void print_matrix(uint * data, uint m, uint n){ //width m, height n
     for(uint i = 0; i < n; i ++){
         for (uint j = 0; j < m; j++){
             std::cout << std::setw(10);
-            std::cout << data[i * m + j] << " ";
+            std::cout << data[i * m + j] << ",";
         }
         std::cout<<std::endl;
     }

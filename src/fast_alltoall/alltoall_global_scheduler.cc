@@ -184,6 +184,8 @@ void get_buffer_size(struct GlobalScheduler * gs){
         gs->buff_parameter->lbsend_sz[local_gpu] = send_area_sz;
         gs->buff_parameter->lbrecv_sz[local_gpu] = recv_area_sz;
     }
+    // gs->buff_parameter->lbsend_total_sz = mem_align(gs->buff_parameter->lbsend_total_sz);
+    // gs->buff_parameter->lbrecv_total_sz = mem_align(gs->buff_parameter->lbrecv_total_sz);
 
 
     gs->buff_parameter->sendbuff_total_sz = 0;
@@ -203,6 +205,7 @@ void get_buffer_size(struct GlobalScheduler * gs){
         }
         gs->buff_parameter->sendbuff_sz[i] = send_buff_sz;
     }
+    // gs->buff_parameter->sendbuff_total_sz = mem_align(gs->buff_parameter->sendbuff_total_sz);
 
     gs->buff_parameter->recvbuff_total_sz = 0;
     for (uint i = 0; i < server_n; i ++){
@@ -213,6 +216,7 @@ void get_buffer_size(struct GlobalScheduler * gs){
             gs->buff_parameter->recvbuff_total_sz += gs->locals[i]->data[j][global_rank_id];
         }
     }
+    // gs->buff_parameter->recvbuff_total_sz = mem_align(gs->buff_parameter->recvbuff_total_sz);
 
 }
 
@@ -311,18 +315,24 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
     // calculate buffer size of crosbuff
     uint crosbuff_sz = 0;
     for (uint step_id = 0; step_id < gs->sched->step_n - 1; step_id++){
-        crosbuff_sz = MAX(crosbuff_sz, (gs -> sched -> steps)[step_id].crossnode_sz[server_id][local_rank_id]);
+        for (uint src_svr = 0; src_svr < gs->server_n; src_svr++){
+            if (src_svr == server_id) continue;
+            if ((gs -> sched -> steps)[step_id].to_server[src_svr] == server_id){
+                crosbuff_sz = MAX(crosbuff_sz, (gs -> sched -> steps)[step_id].crossnode_sz[src_svr][local_rank_id]);
+                break;
+            }
+        }
     }
     // make it 512-byte aligned
-    crosbuff_sz  = (crosbuff_sz + 0x1ff) & 0xfffffe00;
-    gs -> buff_parameter->crosbuff_total_sz = crosbuff_sz * 2;
-    gs -> buff_parameter->crosbuff_offset = crosbuff_sz;
+    crosbuff_sz  = mem_align(crosbuff_sz);
+    gs -> buff_parameter->crosbuff_total_sz = crosbuff_sz;
+    // gs -> buff_parameter->crosbuff_offset = crosbuff_sz;
     uint rstrbuff_sz = 0, max_rstrbuff_sz = 0;
 
 
     // first step
-    uint crosbuff_offset = gs -> buff_parameter -> crosbuff_offset;
-    uint cur_offset = 0, prev_offset = 0;
+    // uint crosbuff_offset = gs -> buff_parameter -> crosbuff_offset;
+    // uint cur_offset = 0, prev_offset = 0;
 
 
     uint crossnode_send_disp[MAX_SERVER_NUM];
@@ -351,7 +361,6 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
         prev_src_server = src_server;
     struct scheduling_step_t * prev_step = cur_step;
     struct scheduling_step_gpu_t * prev_gpu_step = cur_gpu_step;
-    struct recv_data_t * restore_send_sched, * restore_recv_sched, * dcopy_sched;
     uint restore_alltoall_senddisp = 0, restore_alltoall_recvdisp = 0, direct_cpy_disp = 0, restore_recvdisp[MAX_GPU_PER_SERVER], direct_cpy_src_disp = 0;
 
     for (step_id = 1; step_id < gs->sched->step_n - 1; step_id++){
@@ -363,8 +372,8 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
         dst_gpu_global_id = dst_server * gpu_n + local_rank_id;
         src_gpu_global_id = src_server * gpu_n + local_rank_id;
 
-        cur_offset = (step_id % 2 == 1) ? crosbuff_offset : 0;
-        prev_offset = ((step_id - 1) % 2 == 1) ? 0 : crosbuff_offset;
+        // cur_offset = (step_id % 2 == 1) ? crosbuff_offset : 0;
+        // prev_offset = (step_id % 2 == 1) ? 0 : crosbuff_offset;
         // cross node transfer
 
         (cur_gpu_step -> crossnode_send).sz = cur_step -> crossnode_sz[server_id][local_rank_id];
@@ -374,7 +383,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
 
         (cur_gpu_step -> crossnode_recv).sz = cur_step -> crossnode_sz[src_server][local_rank_id];
         (cur_gpu_step -> crossnode_recv).gpu = src_gpu_global_id;
-        (cur_gpu_step -> crossnode_recv).disp = cur_offset; // applying offset here
+        (cur_gpu_step -> crossnode_recv).disp = 0; // applying offset here
 
         //restore data from previous step
 
@@ -395,7 +404,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
             uint cur_gpu = server_id * gpu_n + local_gpu;
             if (send_data_sz > 0){
                 cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].gpu = cur_gpu;
-                cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].disp = restore_alltoall_senddisp + prev_offset;    //applying offset
+                cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].disp = restore_alltoall_senddisp;
                 cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].sz = send_data_sz;
                 restore_alltoall_senddisp += send_data_sz;
                 cur_gpu_step -> restore_send_n ++;
@@ -421,7 +430,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
             if (cpy_sz > 0){
                 uint cur_src_gpu_global_id = prev_src_server  * gpu_n + src_gpu;
                 cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].sz = cpy_sz;
-                cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].src_disp = direct_cpy_disp + direct_cpy_src_disp + prev_offset; // applying offset
+                cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].src_disp = direct_cpy_disp + direct_cpy_src_disp;
                 cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].dst_disp = gs -> buff_parameter -> recvbuff_disp[cur_src_gpu_global_id] + cur_step -> direct_cpy[prev_src_server][local_rank_id][src_gpu].offset ;
                 direct_cpy_src_disp += cpy_sz;
                 cur_gpu_step -> direct_memcpy_n ++;
@@ -449,7 +458,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
     }
 
     // final restore
-    prev_offset = ((gs -> sched -> step_n - 1) % 2 == 1) ? 0 : crosbuff_offset;
+    // prev_offset = ((gs -> sched -> step_n - 1) % 2 == 1) ? 0 : crosbuff_offset;
     cur_step = &(gs -> sched -> steps)[ gs -> sched -> step_n - 1];
     cur_gpu_step = &(gs -> gpu_sched -> steps)[ gs -> gpu_sched -> step_n - 1];
 
@@ -470,7 +479,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
         uint cur_gpu = server_id * gpu_n + local_gpu;
         if (send_data_sz > 0){
             cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].gpu = cur_gpu;
-            cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].disp = restore_alltoall_senddisp + prev_offset;    // applying offset
+            cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].disp = restore_alltoall_senddisp;
             cur_gpu_step -> restore_send[ cur_gpu_step -> restore_send_n].sz = send_data_sz;
             restore_alltoall_senddisp += send_data_sz;
             cur_gpu_step -> restore_send_n ++;
@@ -496,7 +505,7 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
         if (cpy_sz > 0){
             uint cur_src_gpu_global_id = prev_src_server  * gpu_n + src_gpu;
             cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].sz = cpy_sz;
-            cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].src_disp = direct_cpy_disp + direct_cpy_src_disp+ prev_offset; // applying offset
+            cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].src_disp = direct_cpy_disp + direct_cpy_src_disp;
             cur_gpu_step -> direct_memcpy[cur_gpu_step -> direct_memcpy_n].dst_disp = gs -> buff_parameter -> recvbuff_disp[cur_src_gpu_global_id] + cur_step -> direct_cpy[prev_src_server][local_rank_id][src_gpu].offset ;
             direct_cpy_src_disp += cpy_sz;
             cur_gpu_step -> direct_memcpy_n ++;
@@ -518,6 +527,6 @@ void schedule_this_gpu(struct GlobalScheduler * gs){
             }
         }
     }
-
-    gs -> buff_parameter -> rstrbuff_total_sz = max_rstrbuff_sz;
+    // make it 512-byte-aligned
+    gs -> buff_parameter -> rstrbuff_total_sz = mem_align(max_rstrbuff_sz);
 }

@@ -40,3 +40,7 @@ typedef uint * ChannelPtr;
 #define MAX_TRANSFER_STEP_NUM 65 // MAX_SERVER_NUM_SQUARE + 1
 #define MAX_GPU_PER_SERVER GPU_NUM_PER_SERVER
 #define MAX_GPU_PER_SERVER_SQUARE 64
+
+#define mem_512B_align(x) (x + 0x1ff) & 0xfffffe00
+#define mem_align(x) mem_512B_align(x)
+

@@ -7,8 +7,8 @@
 
 
 struct scheduling_step_t{
-    uint to_server[MAX_GPU_PER_SERVER];
-    uint from_server[MAX_GPU_PER_SERVER];
+    uint to_server[MAX_SERVER_NUM];
+    uint from_server[MAX_SERVER_NUM];
     // ChannelPtr: gpu_n * gpu_n (row -> remote dst_gpu's local id, col -> from gpu)
     uint channel[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
     uint crossnode_sz[MAX_SERVER_NUM][MAX_GPU_PER_SERVER];
