@@ -7,7 +7,7 @@
 
 
 
-void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, uint _server_n, uint _server_id){
+void init_local_scheduler(struct LocalScheduler * ls, uint64_t* _data, uint _gpu_n, uint _server_n, uint _server_id){
     ls->gpu_n = _gpu_n;
     ls->server_n = _server_n;
     ls->server_id = _server_id;
@@ -15,8 +15,8 @@ void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, 
     // hipMallocManaged((void**) &ls->data, sizeof(uint*) * ls->gpu_n);
     // hipMallocManaged((void**) &ls->balanced_data, sizeof(uint*) * ls->gpu_n);
     // hipMallocManaged((void**) &ls->data_after_balance, sizeof(data_t*) * ls->gpu_n);
-    ls->data = (uint**) malloc(sizeof(uint *) * ls->gpu_n);
-    ls->balanced_data = (uint **) malloc(sizeof(uint*) * ls->gpu_n);
+    ls->data = (uint64_t**) malloc(sizeof(uint64_t *) * ls->gpu_n);
+    ls->balanced_data = (uint64_t **) malloc(sizeof(uint64_t*) * ls->gpu_n);
     ls->data_after_balance = (data_t **) malloc(sizeof(data_t*) * ls->gpu_n);
     // data = new uint*[gpu_n];
     // balanced_data = new uint*[gpu_n];
@@ -26,8 +26,8 @@ void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, 
         // hipMallocManaged((void**)&ls->data[i], sizeof(uint) * dim);
         // hipMallocManaged((void**)&ls->balanced_data[i], sizeof(uint) * dim);
         // hipMallocManaged((void**)&ls->data_after_balance[i], sizeof(data_t) * dim);
-        ls->data[i] = (uint*) malloc(sizeof(uint) * dim);
-        ls->balanced_data[i] = (uint*) malloc(sizeof(uint) * dim);
+        ls->data[i] = (uint64_t*) malloc(sizeof(uint64_t) * dim);
+        ls->balanced_data[i] = (uint64_t*) malloc(sizeof(uint64_t) * dim);
         ls->data_after_balance[i] = (data_t*) malloc(sizeof(data_t) * dim);
         // data[i] = new uint[dim];
         // balanced_data[i] = new uint[dim];
@@ -44,12 +44,12 @@ void init_local_scheduler(struct LocalScheduler * ls, uint* _data, uint _gpu_n, 
             idx++;
         }
     }
-    ls->server2server_data = (uint *) malloc(sizeof(uint) * ls->server_n);
-    memset(ls->server2server_data, 0, ls->server_n * sizeof(uint));
-    ls->row_sum = (uint *) malloc(sizeof(uint) * ls->gpu_n * ls->server_n);
-    memset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
-    ls->intrinsic_all2all = (uint *) malloc( sizeof(uint) *  ls->gpu_n * ls->gpu_n);
-    memset(ls->intrinsic_all2all, 0, ls->gpu_n * ls->gpu_n * sizeof(uint));
+    ls->server2server_data = (uint64_t *) malloc(sizeof(uint64_t) * ls->server_n);
+    memset(ls->server2server_data, 0, ls->server_n * sizeof(uint64_t));
+    ls->row_sum = (uint64_t *) malloc(sizeof(uint64_t) * ls->gpu_n * ls->server_n);
+    memset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint64_t));
+    ls->intrinsic_all2all = (uint64_t *) malloc( sizeof(uint64_t) *  ls->gpu_n * ls->gpu_n);
+    memset(ls->intrinsic_all2all, 0, ls->gpu_n * ls->gpu_n * sizeof(uint64_t));
 
     // hipMallocManaged((void**)&ls->server2server_data, sizeof(uint) * ls->server_n);
     // hipMemset(ls->server2server_data, 0, ls->server_n * sizeof(uint));
@@ -102,7 +102,7 @@ void free_local_scheduler(struct LocalScheduler * ls){
 }
 
 void prepare_load_balance(struct LocalScheduler * ls){
-    memset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
+    memset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint64_t));
     // hipMemset(ls->row_sum, 0, ls->gpu_n * ls->server_n * sizeof(uint));
     // memset(row_sum, 0, gpu_n * server_n * sizeof(uint));
     for (uint i = 0; i < ls->server_n; i++){
@@ -123,7 +123,7 @@ void prepare_load_balance(struct LocalScheduler * ls){
             }
         }
 
-        uint row_avg = 0;
+        uint64_t row_avg = 0;
         for (uint k = 0; k < ls->gpu_n; k++){
             row_avg += ls->row_sum[i * ls->gpu_n + k];
         }
@@ -157,7 +157,7 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct ba
     for (uint big_row_id = 0; big_row_id < bigger_row_n; big_row_id++){
         uint big_row = bigger_row[big_row_id];
 
-        int rm_data = ls->row_sum[to_server_id * ls->gpu_n + big_row] - ls->server2server_data[to_server_id];
+        int64_t rm_data = ls->row_sum[to_server_id * ls->gpu_n + big_row] - ls->server2server_data[to_server_id];
         for (uint small_row_id = 0; small_row_id < smaller_row_n; small_row_id++){
             uint small_row = smaller_row[small_row_id];
             if (ls->row_sum[to_server_id * ls->gpu_n + small_row] == ls->server2server_data[to_server_id]){
@@ -166,7 +166,7 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct ba
 
             for (uint j = 0; j < ls->gpu_n; j++){
                 // check each element of the big row
-                int mv_data = MIN(MIN(rm_data, ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sum), ls->server2server_data[to_server_id] - ls->row_sum[to_server_id * ls->gpu_n + small_row]);
+                int64_t mv_data = MIN(MIN(rm_data, ls->data_after_balance[big_row][to_server_id * ls->gpu_n + j].sum), ls->server2server_data[to_server_id] - ls->row_sum[to_server_id * ls->gpu_n + small_row]);
                 // cout << "LB scheduler, mv data: " << mv_data <<", channel: "<< j << ", src gpu: " << *big_row << ", dst gpu: " << *small_row << endl;
 
                 if (mv_data == 0){
@@ -199,12 +199,12 @@ void balance_one_server(struct LocalScheduler * ls, uint to_server_id, struct ba
 }
 
 
-void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*channel)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint (*crossnode_sz)[MAX_GPU_PER_SERVER], struct recv_data_t (*r)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint (*restore_alltoall_sz)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER], struct recv_data_t (*dcpy)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint freq){
+void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint64_t (*channel)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint64_t (*crossnode_sz)[MAX_GPU_PER_SERVER], struct recv_data_t (*r)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint64_t (*restore_alltoall_sz)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER], struct recv_data_t (*dcpy)[MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE], uint64_t freq){
     if (to_server_id == ls->server_id){
         return;
     }
     // uint * row_transfer = new uint[gpu_n];
-    uint * row_transfer = (uint *) malloc (sizeof(uint) * ls->gpu_n);
+    uint64_t * row_transfer = (uint64_t *) malloc (sizeof(uint64_t) * ls->gpu_n);
     // hipMallocManaged((void**) &row_transfer, sizeof(uint) * ls->gpu_n);
     for (uint i = 0; i < ls->gpu_n; i++){    // src gpu
 
@@ -215,7 +215,7 @@ void restore_one_server(struct LocalScheduler * ls, uint to_server_id, uint (*ch
                 if (ls->data_after_balance[i][to_server_id * ls->gpu_n + j].sz[from_gpu] == 0){
                     continue;
                 }
-                int transfer = MIN(freq - row_transfer[i], ls->data_after_balance[i][to_server_id * ls->gpu_n + j].sz[from_gpu]);
+                int64_t transfer = MIN(freq - row_transfer[i], ls->data_after_balance[i][to_server_id * ls->gpu_n + j].sz[from_gpu]);
                 row_transfer[i] += transfer;
                 (*restore_alltoall_sz)[i][j] += transfer;
                 (*channel)[i][ j * ls->gpu_n + from_gpu] += transfer;
@@ -256,7 +256,7 @@ void print_local_scheduler(struct LocalScheduler * ls, uint dst_server_id){
     // cout << "server "<< ls->server_id << " to server " << dst_server_id << endl;
     for (uint i = 0; i < ls->gpu_n; i++){
         for (uint j = 0; j < ls->gpu_n; j++){
-            LOG("%*u", 10,  ls->data[i][dst_server_id * ls->gpu_n + j]);
+            LOG("%*lu", 10,  ls->data[i][dst_server_id * ls->gpu_n + j]);
         }
         LOG("\n");
     }
@@ -268,7 +268,7 @@ void print_local_scheduler(struct LocalScheduler * ls){
     // cout << "original matrix: " << endl;
     for (uint i = 0; i < ls->gpu_n; i++){
         for (uint j = 0; j < dim; j++){
-            LOG("%*u", 10,  ls->data[i][j]);
+            LOG("%*lu", 10,  ls->data[i][j]);
         }
         LOG("\n");
     }
@@ -305,7 +305,7 @@ void print_local_scheduler(struct LocalScheduler * ls){
     // }
 }
 
-void print_matrix(uint * data, uint m, uint n){ //width m, height n
+void print_matrix(uint64_t * data, uint m, uint n){ //width m, height n
     std::cout<<"--------------------------------------" << std::endl;
     for(uint i = 0; i < n; i ++){
         for (uint j = 0; j < m; j++){

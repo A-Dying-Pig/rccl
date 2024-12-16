@@ -12,10 +12,10 @@ void init_matrix(struct Matrix *m, uint _dim){
     m->sdsm_info.is_sdsm = false;
     m->sdsm_info.max_row_col_sum = 0;
     if (_dim > 0){
-        m->data = (uint **) malloc(sizeof(uint*) * _dim);
+        m->data = (uint64_t **) malloc(sizeof(uint64_t*) * _dim);
         // hipMallocManaged((void**) &m->data, sizeof(uint*) * _dim);
         for (uint i = 0; i < _dim; i++){
-            m->data[i] = (uint *) malloc(sizeof(uint) * _dim);
+            m->data[i] = (uint64_t *) malloc(sizeof(uint64_t) * _dim);
             // hipMallocManaged((void**) &m->data[i], sizeof(uint) * _dim);
             for (uint j = 0; j < _dim; j++){
                 m->data[i][j] = 0;
@@ -38,7 +38,7 @@ void free_matrix(struct Matrix *m){
 }
 
 
-void copy_matrix(struct Matrix *m, uint * _data, uint source_dim){
+void copy_matrix(struct Matrix *m, uint64_t * _data, uint source_dim){
     if (m->dim > 0 && m->data != NULL && m->dim != source_dim){
         // matrix dimension different - release memory first
         for (uint i = 0; i < m->dim; i++){
@@ -51,11 +51,11 @@ void copy_matrix(struct Matrix *m, uint * _data, uint source_dim){
         // delete[] data;
     }
     if (m->dim != source_dim){
-        m->data = (uint **) malloc(sizeof(uint*) * source_dim);
+        m->data = (uint64_t **) malloc(sizeof(uint64_t*) * source_dim);
         // hipMallocManaged((void**) &m->data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            m->data[i] = (uint *) malloc(sizeof(uint) * source_dim);
+            m->data[i] = (uint64_t *) malloc(sizeof(uint64_t) * source_dim);
             // hipMallocManaged((void**) &m->data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
@@ -86,11 +86,11 @@ void copy_matrix(struct Matrix *dst, struct Matrix * src){
         // hipFree(dst->data);
     }
     if (dst->dim != source_dim){
-        dst->data = (uint **) malloc(sizeof(uint *) * source_dim);
+        dst->data = (uint64_t **) malloc(sizeof(uint64_t *) * source_dim);
         // hipMallocManaged((void**) &dst->data, sizeof(uint*) * source_dim);
         // data = new uint*[source_dim];
         for (uint i = 0; i < source_dim; i++){
-            dst->data[i] = (uint *) malloc(sizeof(uint) * source_dim);
+            dst->data[i] = (uint64_t *) malloc(sizeof(uint64_t) * source_dim);
             // hipMallocManaged((void**) &dst->data[i], sizeof(uint) * source_dim);
             // data[i] = new uint[source_dim];
         }
@@ -119,7 +119,7 @@ bool equal_to_matrix(struct Matrix *a, struct Matrix *b){
 }
 
 
-uint get_matrix(struct Matrix *m, uint x, uint y){
+uint64_t get_matrix(struct Matrix *m, uint x, uint y){
     if (x >= m->dim || y >= m->dim){
         LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return 0;
@@ -127,7 +127,7 @@ uint get_matrix(struct Matrix *m, uint x, uint y){
     return m->data[x][y];
 }
 
-bool set_matrix(struct Matrix *m, uint val, uint x, uint y){
+bool set_matrix(struct Matrix *m, uint64_t val, uint x, uint y){
     if (x >= m->dim || y >= m->dim){
         LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return false;
@@ -136,7 +136,7 @@ bool set_matrix(struct Matrix *m, uint val, uint x, uint y){
     return true;
 }
 
-bool add_matrix(struct Matrix *m, uint val, uint x, uint y){
+bool add_matrix(struct Matrix *m, uint64_t val, uint x, uint y){
     if (x >= m->dim || y >= m->dim){
         LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return false;
@@ -145,7 +145,7 @@ bool add_matrix(struct Matrix *m, uint val, uint x, uint y){
     return true;
 }
 
-bool subtract_matrix(struct Matrix *m, uint val, uint x, uint y){
+bool subtract_matrix(struct Matrix *m, uint64_t val, uint x, uint y){
     if (x >= m->dim || y >= m->dim){
         LOG("invalid get parameters (%u, %u) for a %u x %u matrix", x, y, m->dim, m->dim);
         return false;
@@ -176,9 +176,9 @@ void get_sdsm_info_matrix(struct Matrix *m){
     uint max_col_idx_n = 0, max_row_idx_n = 0;
 
 
-    uint max_sum = 0, same_sum_count = 0;
+    uint64_t max_sum = 0, same_sum_count = 0;
     for (uint i = 0; i < m->dim; i++){
-        uint row_sum = 0;
+        uint64_t row_sum = 0;
         for (uint j = 0; j < m->dim; j++){
             row_sum += m->data[i][j];
         }
@@ -204,7 +204,7 @@ void get_sdsm_info_matrix(struct Matrix *m){
     }
 
     for (uint i = 0; i < m->dim; i++){
-        uint col_sum = 0;
+        uint64_t col_sum = 0;
         for (uint j = 0; j < m->dim; j++){
             col_sum += m->data[j][i];
         }

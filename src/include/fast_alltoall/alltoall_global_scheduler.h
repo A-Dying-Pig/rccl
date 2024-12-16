@@ -10,9 +10,9 @@ struct scheduling_step_t{
     uint to_server[MAX_SERVER_NUM];
     uint from_server[MAX_SERVER_NUM];
     // ChannelPtr: gpu_n * gpu_n (row -> remote dst_gpu's local id, col -> from gpu)
-    uint channel[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
-    uint crossnode_sz[MAX_SERVER_NUM][MAX_GPU_PER_SERVER];
-    uint restore_alltoall_sz[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER];
+    uint64_t channel[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
+    uint64_t crossnode_sz[MAX_SERVER_NUM][MAX_GPU_PER_SERVER];
+    uint64_t restore_alltoall_sz[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER];
     //  RestorePtr: gpu_n * gpu_n (row -> dst_gpu's local id, col -> from gpu)
     struct recv_data_t restore[MAX_SERVER_NUM][MAX_GPU_PER_SERVER][MAX_GPU_PER_SERVER_SQUARE];
     // server id * channel id
@@ -23,24 +23,23 @@ struct scheduling_result_t{
     uint gpu_n;
     uint server_n;
     uint rankid;
-    uint MAX_BUFFER_SIZE_PER_RANK;
     struct balance_data_t balance[MAX_SERVER_NUM][MAX_SERVER_NUM][MAX_GPU_PER_SERVER_SQUARE];
     struct scheduling_step_t steps[MAX_TRANSFER_STEP_NUM];
     uint step_n;
-    uint intrinsic_ata[MAX_SERVER_NUM][MAX_GPU_PER_SERVER_SQUARE];
+    uint64_t intrinsic_ata[MAX_SERVER_NUM][MAX_GPU_PER_SERVER_SQUARE];
 };
 
 
 struct memcpy_buffer_t{
-    uint src_disp;
-    uint dst_disp;
-    uint sz;
+    uint64_t src_disp;
+    uint64_t dst_disp;
+    uint64_t sz;
 };
 
 struct send_recv_buffer_t{
-    uint gpu;
-    uint disp;
-    uint sz;
+    uint64_t gpu;
+    uint64_t disp;
+    uint64_t sz;
 };
 
 struct scheduling_step_gpu_t{
@@ -81,51 +80,51 @@ struct scheduling_result_gpu_t{
 
 
 struct sendbuff_region_t{
-    uint src_gpu_disp[GPU_NUM_PER_SERVER];
-    uint src_gpu_sz[GPU_NUM_PER_SERVER];
-    uint src_gpu_offset[GPU_NUM_PER_SERVER];
+    uint64_t src_gpu_disp[GPU_NUM_PER_SERVER];
+    uint64_t src_gpu_sz[GPU_NUM_PER_SERVER];
+    uint64_t src_gpu_offset[GPU_NUM_PER_SERVER];
     uint src_gpu_n;
 };
 
 
 struct lbbuff_region_t{
-    uint server_disp[MAX_SERVER_NUM];
-    uint server_sz[MAX_SERVER_NUM];
-    uint server_offset[MAX_SERVER_NUM];
+    uint64_t server_disp[MAX_SERVER_NUM];
+    uint64_t server_sz[MAX_SERVER_NUM];
+    uint64_t server_offset[MAX_SERVER_NUM];
     uint server_n;
 };
 
 struct lbbuff_area_t{
     struct lbbuff_region_t dst_gpu_region[GPU_NUM_PER_SERVER];
-    uint dst_gpu_disp[GPU_NUM_PER_SERVER];
-    uint dst_gpu_sz[GPU_NUM_PER_SERVER];
+    uint64_t dst_gpu_disp[GPU_NUM_PER_SERVER];
+    uint64_t dst_gpu_sz[GPU_NUM_PER_SERVER];
     uint dst_gpu_n;
 };
 
 struct buffer_parameter_t{
-    uint sendbuff_disp[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
-    uint sendbuff_sz[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
+    uint64_t sendbuff_disp[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
+    uint64_t sendbuff_sz[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
     struct sendbuff_region_t sendbuff_region[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
-    uint sendbuff_total_sz;
+    uint64_t sendbuff_total_sz;
 
-    uint recvbuff_disp[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
-    uint recvbuff_sz[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
-    uint recvbuff_total_sz;
+    uint64_t recvbuff_disp[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
+    uint64_t recvbuff_sz[MAX_SERVER_NUM_TIMES_GPU_NUM_PER_SERVER];
+    uint64_t recvbuff_total_sz;
 
 
-    uint lbsend_disp[GPU_NUM_PER_SERVER];
-    uint lbsend_sz[GPU_NUM_PER_SERVER];
+    uint64_t lbsend_disp[GPU_NUM_PER_SERVER];
+    uint64_t lbsend_sz[GPU_NUM_PER_SERVER];
     struct lbbuff_area_t lbsend_area[GPU_NUM_PER_SERVER];
-    uint lbsend_total_sz;
+    uint64_t lbsend_total_sz;
 
-    uint lbrecv_disp[GPU_NUM_PER_SERVER];
-    uint lbrecv_sz[GPU_NUM_PER_SERVER];
+    uint64_t lbrecv_disp[GPU_NUM_PER_SERVER];
+    uint64_t lbrecv_sz[GPU_NUM_PER_SERVER];
     struct lbbuff_area_t lbrecv_area[GPU_NUM_PER_SERVER];
-    uint lbrecv_total_sz;
+    uint64_t lbrecv_total_sz;
 
-    uint crosbuff_total_sz; // use the offset to alternate the first and second half of the buffer
-    uint crosbuff_offset;
-    uint rstrbuff_total_sz;
+    uint64_t crosbuff_total_sz; // use the offset to alternate the first and second half of the buffer
+    uint64_t crosbuff_offset;
+    uint64_t rstrbuff_total_sz;
 };
 
 struct GlobalScheduler{
@@ -139,23 +138,11 @@ struct GlobalScheduler{
 };
 
 
-void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gpu_n, uint * demand_matrix, uint rankid);
+void init_global_scheduler(struct GlobalScheduler * gs, uint _server_n, uint _gpu_n, uint64_t * demand_matrix, uint rankid);
 void free_global_scheduler(struct GlobalScheduler * gs);
 void run_scheduler(struct GlobalScheduler * gs);
 void get_buffer_size(struct GlobalScheduler * gs);
 void schedule_this_gpu(struct GlobalScheduler * gs);
-
-
-struct alltoall_buffer{
-    void * sendbuff;
-    uint sendbuff_sz;
-    void * recvbuff;
-    uint recvbuff_sz;
-    void * crosbuff;
-    uint crosbuff_sz;
-    void * rstrbuff;
-    uint rstrbuff_sz;
-};
 
 
 

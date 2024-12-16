@@ -32,7 +32,7 @@ void to_scaled_doubly_stochastic_matrix_fastall2all(struct FastAll2All * ata){
 
     if(!ata->SDS_mat.sdsm_info.is_sdsm){
         uint dim = ata->SDS_mat.dim;
-        uint max_sum = ata->SDS_mat.sdsm_info.max_row_col_sum;
+        uint64_t max_sum = ata->SDS_mat.sdsm_info.max_row_col_sum;
         // original matrix is not SDSM, do the conversion
         for (uint row_id = 0; row_id < ata->SDS_mat.sdsm_info.non_max_row_n; row_id++){
             struct row_col_info_t * row = &(ata->SDS_mat.sdsm_info.non_max_row[row_id]);
@@ -41,7 +41,7 @@ void to_scaled_doubly_stochastic_matrix_fastall2all(struct FastAll2All * ata){
                 if (col -> sum == max_sum){
                     continue;
                 }
-                uint diff = max_sum - MAX(row -> sum, col -> sum);
+                uint64_t diff = max_sum - MAX(row -> sum, col -> sum);
                 add_matrix(&ata -> SDS_mat, diff, row -> idx, col -> idx);
                 row -> sum += diff;
                 col -> sum += diff;
@@ -63,7 +63,7 @@ void decompose_fastall2all(struct FastAll2All * ata){
         return;
     }
     ata->p_sets_n = 0;
-    uint freq_sum = 0, max_sum = ata->SDS_mat.sdsm_info.max_row_col_sum;
+    uint64_t freq_sum = 0, max_sum = ata->SDS_mat.sdsm_info.max_row_col_sum;
     while(freq_sum < max_sum){
         update_edges_fastall2all(ata);
         hungarian_fastall2all(ata);
@@ -140,7 +140,7 @@ void update_edges_fastall2all(struct FastAll2All * ata){
     for (uint i = 0; i < dim; i++){
         for (uint j = 0; j < dim; j++){
             uint col_id = j + dim;
-            uint elem = get_matrix(&ata ->SDS_mat, i, j);
+            uint64_t elem = get_matrix(&ata ->SDS_mat, i, j);
             if(elem > 0){
                 // insert edge into the set
                 set_insert(col_id, ata->hungarian_info.row_to_col[i], &ata->hungarian_info.row_to_col_n[i]);
@@ -158,7 +158,7 @@ uint update_permutation_sets_fastall2all(struct FastAll2All * ata){
 
     struct PermutationSet * cur_pset = &ata->p_sets[ata->p_sets_n];
     init_permutation_set(cur_pset, 1, 1, dim);
-    uint min_freq = get_matrix(&ata->SDS_mat, 0, ata->hungarian_info.matching[0] - dim);
+    uint64_t min_freq = get_matrix(&ata->SDS_mat, 0, ata->hungarian_info.matching[0] - dim);
     for(uint i = 0; i < dim; i++){
         uint col_id = ata->hungarian_info.matching[i] - dim;
         min_freq = MIN(get_matrix(&ata->SDS_mat, i, col_id), min_freq);
@@ -247,7 +247,7 @@ void from_server_permutation_set(struct PermutationSet * ps, uint server_n, uint
     }
 }
 
-void init_permutation_set(struct PermutationSet * ps, uint _freq, uint _sf, uint _dim) {
+void init_permutation_set(struct PermutationSet * ps, uint64_t _freq, uint _sf, uint _dim) {
     ps->frequency = _freq;
     ps->scaling_factor = _sf;
     ps->dim = _dim;
@@ -271,10 +271,10 @@ bool map_lookup(struct map_data_t * array, uint sz, uint key, uint * val){
     return false;
 }
 
-void set_freq_permutation_set(struct PermutationSet * ps, uint freq){
+void set_freq_permutation_set(struct PermutationSet * ps, uint64_t freq){
     ps -> frequency = freq;
 }
 
-uint get_freq_permutation_set(struct PermutationSet * ps){
+uint64_t get_freq_permutation_set(struct PermutationSet * ps){
     return ps -> frequency * ps -> scaling_factor;
 }
